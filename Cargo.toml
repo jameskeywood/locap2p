@@ -1,7 +1,14 @@
 [workspace]
-resolver = "2"
-members = [
-    "crates/*",
-    "services/*",
-	"examples/*"
-]
+resolver = "3"
+members = ["crates/*", "services/*", "examples/*"]
+default-members = ["crates/*", "services/*"]
+
+[workspace.dependencies]
+locap2p-core = { path = "crates/locap2p-core" }
+locap2p-gossip = { path = "crates/locap2p-gossip" }
+locap2p-network = { path = "crates/locap2p-network" }
+
+futures = "0.3"
+libp2p = "0.57"
+tokio = "1"
+tracing-subscriber = "0.3"
