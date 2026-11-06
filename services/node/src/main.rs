@@ -1,3 +1,5 @@
+//! Interactive node that gossips stdin messages to local peers.
+
 use anyhow::Result;
 use locap2p_core::Event;
 use locap2p_gossip::{GossipEvent, GossipsubGossip, Topic};
@@ -17,9 +19,9 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    let (handle, events) = Network::start(NetworkConfig::default()).await?;
-    let node_id = handle.local_node_id();
-    let gossip = GossipsubGossip::start(handle, events, Topic::default()).await?;
+    let network = Network::start(NetworkConfig::default())?;
+    let node_id = network.local_node_id();
+    let gossip = GossipsubGossip::start(network, Topic::default())?;
     let mut node = Node::new(node_id.clone(), gossip);
 
     println!("Node: {node_id}");

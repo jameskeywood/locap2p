@@ -1,3 +1,5 @@
+//! Core domain types and CRDT state for locap2p.
+
 mod event;
 mod event_set;
 mod id;

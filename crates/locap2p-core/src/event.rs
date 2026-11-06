@@ -13,6 +13,7 @@ pub struct Event {
 }
 
 impl Event {
+    /// Creates an event and computes its content-addressed identifier.
     pub fn new(author: NodeId, payload: impl Into<String>, timestamp_nanos: u64) -> Self {
         let payload = payload.into();
         let id = compute_event_id(&author, &payload, timestamp_nanos);
@@ -41,6 +42,7 @@ impl Event {
         self.timestamp_nanos
     }
 
+    /// Recomputes the event's content-addressed identifier and verifies it.
     pub fn verify_id(&self) -> Result<(), EventError> {
         let expected = compute_event_id(&self.author, &self.payload, self.timestamp_nanos);
 
@@ -52,8 +54,10 @@ impl Event {
     }
 }
 
+/// Errors returned when validating an event.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum EventError {
+    /// The event ID does not match the event content.
     #[error("event id does not match the event content")]
     InvalidId,
 }

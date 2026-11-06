@@ -1,6 +1,7 @@
 use locap2p_network::NetworkError;
 use thiserror::Error;
 
+/// Errors returned by gossip operations.
 #[derive(Debug, Error)]
 pub enum GossipError {
     #[error("topic must not be empty")]
@@ -11,6 +12,7 @@ pub enum GossipError {
     Network(#[from] NetworkError),
 }
 
+/// Errors returned when encoding or validating gossip messages.
 #[derive(Debug, Error)]
 pub enum CodecError {
     #[error("malformed event: {0}")]

@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// Errors returned by the network layer.
 #[derive(Debug, Error)]
 pub enum NetworkError {
     #[error("failed to build the network: {0}")]
@@ -10,6 +11,4 @@ pub enum NetworkError {
     Subscribe(String),
     #[error("failed to publish message: {0}")]
     Publish(String),
-    #[error("network task is no longer running")]
-    Closed,
 }

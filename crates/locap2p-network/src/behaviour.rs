@@ -1,25 +1,15 @@
 use std::time::Duration;
 
-use libp2p::{
-    gossipsub,
-    identity::Keypair,
-    mdns,
-    swarm::{NetworkBehaviour, behaviour::toggle::Toggle},
-};
-
-use crate::config::DiscoveryMode;
+use libp2p::{gossipsub, identity::Keypair, mdns, swarm::NetworkBehaviour};
 
 #[derive(NetworkBehaviour)]
 pub(crate) struct Behaviour {
     pub(crate) gossipsub: gossipsub::Behaviour,
-    pub(crate) mdns: Toggle<mdns::tokio::Behaviour>,
+    pub(crate) mdns: mdns::tokio::Behaviour,
 }
 
 impl Behaviour {
-    pub(crate) fn new(
-        key: &Keypair,
-        discovery: DiscoveryMode,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+    pub(crate) fn new(key: &Keypair) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let message_id_fn = |message: &gossipsub::Message| {
             gossipsub::MessageId::from(blake3::hash(&message.data).to_hex().to_string())
         };
@@ -37,17 +27,9 @@ impl Behaviour {
         )
         .map_err(std::io::Error::other)?;
 
-        let mdns = match discovery {
-            DiscoveryMode::Mdns => Some(
-                mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())
-                    .map_err(std::io::Error::other)?,
-            ),
-            DiscoveryMode::None => None,
-        };
+        let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())
+            .map_err(std::io::Error::other)?;
 
-        Ok(Self {
-            gossipsub,
-            mdns: Toggle::from(mdns),
-        })
+        Ok(Self { gossipsub, mdns })
     }
 }

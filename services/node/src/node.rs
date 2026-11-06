@@ -11,6 +11,7 @@ pub struct Node<G: Gossip> {
 }
 
 impl<G: Gossip> Node<G> {
+    /// Creates a node with empty state and the given gossip strategy.
     pub fn new(id: NodeId, gossip: G) -> Self {
         Self {
             id,
@@ -19,10 +20,12 @@ impl<G: Gossip> Node<G> {
         }
     }
 
+    /// Creates an event authored by this node using the current time.
     pub fn create_event(&self, text: impl Into<String>) -> Event {
         Event::new(self.id.clone(), text, now_nanos())
     }
 
+    /// Inserts an event into local state and returns `true` if it was new.
     pub fn observe(&mut self, event: Event) -> bool {
         self.state.insert(event)
     }

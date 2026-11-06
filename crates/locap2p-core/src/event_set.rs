@@ -13,6 +13,7 @@ pub struct EventSet {
 }
 
 impl EventSet {
+    /// Inserts an event and returns `true` if it was not already present.
     pub fn insert(&mut self, event: Event) -> bool {
         self.events.insert(event.id().clone(), event).is_none()
     }
@@ -21,6 +22,7 @@ impl EventSet {
         self.events.contains_key(id)
     }
 
+    /// Merges another set into this one and returns the number of new events.
     pub fn merge(&mut self, other: &Self) -> usize {
         let mut inserted = 0;
 

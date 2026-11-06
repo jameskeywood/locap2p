@@ -2,12 +2,15 @@ use std::fmt;
 
 use crate::GossipError;
 
+/// Default topic used by the demo node.
 pub const DEFAULT_TOPIC: &str = "locap2p/events/v1";
 
+/// A non-empty gossipsub topic name.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Topic(String);
 
 impl Topic {
+    /// Creates a topic, rejecting empty names.
     pub fn new(value: impl Into<String>) -> Result<Self, GossipError> {
         let value = value.into();
         if value.is_empty() {
