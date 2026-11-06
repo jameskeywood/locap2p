@@ -15,5 +15,8 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 ### Building with Cargo
 - https://doc.rust-lang.org/cargo/reference/workspaces.html
 
+### Using the Rust programming language
+- https://doc.rust-lang.org/book/
+
 ### Networking with libp2p
 - https://github.com/libp2p/rust-libp2p

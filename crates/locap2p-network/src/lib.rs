@@ -1,14 +1,15 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! libp2p networking and local peer discovery.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod behaviour;
+mod config;
+mod error;
+mod event;
+mod event_handler;
+mod network;
+mod swarm;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use config::NetworkConfig;
+pub use error::NetworkError;
+pub use event::NetworkEvent;
+pub use libp2p::Multiaddr;
+pub use network::Network;

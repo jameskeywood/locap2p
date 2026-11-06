@@ -1,14 +1,25 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Gossip abstraction and its current gossipsub implementation.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+use std::future::Future;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+use locap2p_core::Event;
+
+mod codec;
+mod error;
+mod event;
+mod gossipsub;
+mod topic;
+
+pub use error::{CodecError, GossipError};
+pub use event::GossipEvent;
+pub use gossipsub::GossipsubGossip;
+pub use topic::{DEFAULT_TOPIC, Topic};
+
+/// Abstraction over an event dissemination strategy.
+pub trait Gossip: Send {
+    /// Publishes an event to the gossip network.
+    fn publish(&mut self, event: Event) -> impl Future<Output = Result<(), GossipError>> + Send;
+
+    /// Waits for the next gossip event.
+    fn next_event(&mut self) -> impl Future<Output = Option<GossipEvent>> + Send;
 }
