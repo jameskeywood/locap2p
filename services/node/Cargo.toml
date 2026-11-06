@@ -4,3 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+locap2p-core = { workspace = true }
+locap2p-gossip = { workspace = true }
+locap2p-network = { workspace = true }
+
+anyhow = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-std",
+    "io-util",
+    "macros",
+    "rt-multi-thread",
+    "signal",
+] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
