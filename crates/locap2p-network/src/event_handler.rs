@@ -1,11 +1,8 @@
 use std::collections::{HashSet, VecDeque};
 
-use libp2p::{
-    Multiaddr, PeerId, Swarm, gossipsub, mdns,
-    swarm::{SwarmEvent, dial_opts::DialOpts},
-};
+use libp2p::{Multiaddr, PeerId, Swarm, gossipsub, mdns, swarm::SwarmEvent};
 use locap2p_core::NodeId;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::{
     behaviour::{Behaviour, BehaviourEvent},
@@ -56,6 +53,12 @@ impl SwarmEventHandler {
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
                 debug!(%peer_id, "connection closed");
             }
+            SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+                warn!(?peer_id, ?error, "outgoing connection failed");
+            }
+            SwarmEvent::IncomingConnectionError { peer_id, error, .. } => {
+                warn!(?peer_id, ?error, "incoming connection failed");
+            }
             _ => {}
         }
     }
@@ -66,20 +69,16 @@ impl SwarmEventHandler {
         peers: Vec<(PeerId, Multiaddr)>,
     ) {
         for (peer_id, address) in peers {
-            if !self.discovered_peers.insert(peer_id) {
-                continue;
+            let is_new = self.discovered_peers.insert(peer_id);
+
+            if is_new {
+                info!(%peer_id, %address, "discovered peer");
+                self.pending_events
+                    .push_back(NetworkEvent::PeerDiscovered(node_id(peer_id)));
             }
 
-            info!(%peer_id, %address, "discovered peer");
+            // Gossipsub dials explicit peers using all addresses supplied by mDNS.
             swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-
-            let dial = DialOpts::peer_id(peer_id).addresses(vec![address]).build();
-            if let Err(error) = swarm.dial(dial) {
-                debug!(%peer_id, %error, "failed to dial discovered peer");
-            }
-
-            self.pending_events
-                .push_back(NetworkEvent::PeerDiscovered(node_id(peer_id)));
         }
     }
 
