@@ -19,10 +19,12 @@ pub(crate) fn decode(source: &NodeId, data: &[u8]) -> Result<Event, CodecError> 
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
 
     fn event(author: &str, payload: &str, timestamp_nanos: u64) -> Event {
-        Event::new(NodeId::from(author), payload, timestamp_nanos)
+        Event::new(NodeId::from(author), 1, json!(payload), timestamp_nanos)
     }
 
     #[test]
@@ -50,7 +52,7 @@ mod tests {
         let original = event("node-a", "hello", 10);
         let encoded = encode(&original).unwrap();
         let mut value: serde_json::Value = serde_json::from_slice(&encoded).unwrap();
-        value["payload"] = serde_json::Value::String("tampered".to_owned());
+        value["payload"] = json!("tampered");
         let tampered = serde_json::to_vec(&value).unwrap();
 
         assert!(matches!(

@@ -6,6 +6,7 @@ default-members = ["crates/*", "services/*"]
 [workspace.dependencies]
 locap2p-core = { path = "crates/locap2p-core" }
 locap2p-gossip = { path = "crates/locap2p-gossip" }
+locap2p-ipc = { path = "crates/locap2p-ipc" }
 locap2p-network = { path = "crates/locap2p-network" }
 
 anyhow = "1"

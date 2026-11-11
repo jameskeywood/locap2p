@@ -1855,6 +1855,7 @@ version = "0.1.0"
 dependencies = [
  "blake3",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
 ]
 
@@ -1867,6 +1868,32 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "tracing",
+]
+
+[[package]]
+name = "locap2p-host"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "locap2p-core",
+ "locap2p-gossip",
+ "locap2p-ipc",
+ "locap2p-network",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "locap2p-ipc"
+version = "0.1.0"
+dependencies = [
+ "locap2p-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]
@@ -2083,19 +2110,6 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc",
-]
-
-[[package]]
-name = "node"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "locap2p-core",
- "locap2p-gossip",
- "locap2p-network",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
