@@ -13,7 +13,14 @@ public final class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        Path hostBinary = resolveHostBinary();
+        if (args.length != 2 || !args[0].equals("--host-bin")) {
+            System.err.println(
+                    "usage: locap2p-demo --host-bin <path-to-locap2p-host>");
+            System.exit(2);
+            return;
+        }
+
+        Path hostBinary = Path.of(args[1]).toAbsolutePath().normalize();
         if (!Files.isExecutable(hostBinary)) {
             System.err.println("framework host not found at " + hostBinary);
             System.err.println("build it with: cargo build -p locap2p-host");
@@ -30,20 +37,6 @@ public final class Main {
 
             readCommands(client, world);
         }
-    }
-
-    private static Path resolveHostBinary() {
-        String configured = System.getProperty(
-                "locap2p.host.bin",
-                System.getenv("LOCAP2P_HOST_BIN"));
-
-        if (configured != null && !configured.isBlank()) {
-            return Path.of(configured).toAbsolutePath().normalize();
-        }
-
-        return Path.of("..", "..", "target", "debug", "locap2p-host")
-                .toAbsolutePath()
-                .normalize();
     }
 
     private static void readCommands(FrameworkClient client, WorldState world) throws IOException {
