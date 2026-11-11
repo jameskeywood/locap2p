@@ -1,4 +1,4 @@
-package com.locap2p.demo;
+package com.locap2p.demo.ipc;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

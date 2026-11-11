@@ -1,4 +1,4 @@
-package com.locap2p.demo;
+package com.locap2p.demo.ipc;
 
 import java.io.IOException;
 
@@ -22,7 +22,7 @@ public final class Protocol {
         record Ready(String nodeId) implements ServerMessage {
         }
 
-        record RemoteEvent(FrameworkEvent event) implements ServerMessage {
+        record EventMessage(FrameworkEvent event) implements ServerMessage {
         }
 
         record PeerJoined(String nodeId) implements ServerMessage {
@@ -49,7 +49,7 @@ public final class Protocol {
 
         return switch (type) {
             case "ready" -> new ServerMessage.Ready(root.path("node_id").asText());
-            case "event" -> new ServerMessage.RemoteEvent(
+            case "event" -> new ServerMessage.EventMessage(
                     MAPPER.treeToValue(root.path("event"), FrameworkEvent.class));
             case "peer_joined" -> new ServerMessage.PeerJoined(root.path("node_id").asText());
             case "peer_left" -> new ServerMessage.PeerLeft(root.path("node_id").asText());

@@ -1,4 +1,4 @@
-package com.locap2p.demo;
+package com.locap2p.demo.ipc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -17,7 +17,7 @@ class ProtocolTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
-    void parsesRemoteEvent() throws IOException {
+    void parsesEventMessage() throws IOException {
         String line = """
                 {
                   "type": "event",
@@ -32,16 +32,16 @@ class ProtocolTest {
                 """;
 
         Protocol.ServerMessage message = Protocol.parseServerMessage(line);
-        Protocol.ServerMessage.RemoteEvent remote = assertInstanceOf(
-                Protocol.ServerMessage.RemoteEvent.class,
+        Protocol.ServerMessage.EventMessage event = assertInstanceOf(
+                Protocol.ServerMessage.EventMessage.class,
                 message);
 
-        assertEquals("peer", remote.event().author());
-        assertEquals(2, remote.event().seq());
-        assertEquals(10, remote.event().timestampNanos());
+        assertEquals("peer", event.event().author());
+        assertEquals(2, event.event().seq());
+        assertEquals(10, event.event().timestampNanos());
         assertEquals(
                 new PositionEvent("peer", new Position(3, 4), 2),
-                Protocol.parsePositionEvent(remote.event()));
+                Protocol.parsePositionEvent(event.event()));
     }
 
     @Test

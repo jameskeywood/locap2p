@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 
+import com.locap2p.demo.ipc.FrameworkClient;
+import com.locap2p.demo.ipc.Protocol;
 import com.locap2p.demo.model.Direction;
 import com.locap2p.demo.model.Position;
 import com.locap2p.demo.model.PositionEvent;
@@ -81,8 +83,8 @@ public final class Main {
             ApplicationState state,
             Protocol.ServerMessage message) {
         switch (message) {
-            case Protocol.ServerMessage.RemoteEvent remote ->
-                    handleEvent(state, remote.event());
+            case Protocol.ServerMessage.EventMessage event ->
+                    handleEvent(state, event.event());
             case Protocol.ServerMessage.PeerJoined joined ->
                     System.out.printf("peer joined: %s%n", joined.nodeId());
             case Protocol.ServerMessage.PeerLeft left ->
