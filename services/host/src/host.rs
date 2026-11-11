@@ -23,15 +23,18 @@ impl<G: Gossip> Host<G> {
         }
     }
 
-    /// Creates, stores and publishes an event for the given application payload.
-    pub async fn publish(&mut self, payload: Value) -> Result<Event, GossipError> {
+    /// Creates and stores an event for the given application payload.
+    pub fn create_event(&mut self, payload: Value) -> Event {
         self.next_seq = self.next_seq.saturating_add(1);
         let event = Event::new(self.id.clone(), self.next_seq, payload, now_nanos());
 
         self.events.insert(event.clone());
-        self.gossip.publish(event.clone()).await?;
+        event
+    }
 
-        Ok(event)
+    /// Publishes an event to the gossip network.
+    pub async fn publish(&mut self, event: Event) -> Result<(), GossipError> {
+        self.gossip.publish(event).await
     }
 
     /// Inserts an event into local state and returns `true` if it was new.

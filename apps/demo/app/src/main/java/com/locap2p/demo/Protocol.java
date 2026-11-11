@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.locap2p.demo.model.Position;
+import com.locap2p.demo.model.PositionEvent;
 
 public final class Protocol {
     private static final ObjectMapper MAPPER = new ObjectMapper()
@@ -65,7 +66,9 @@ public final class Protocol {
         return frame.toString();
     }
 
-    public static Position parsePosition(JsonNode payload) throws IOException {
-        return MAPPER.treeToValue(payload, Position.class);
+    public static PositionEvent parsePositionEvent(FrameworkEvent event)
+            throws IOException {
+        Position position = MAPPER.treeToValue(event.payload(), Position.class);
+        return new PositionEvent(event.author(), position, event.seq());
     }
 }

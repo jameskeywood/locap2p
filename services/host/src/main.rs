@@ -39,11 +39,25 @@ async fn main() -> Result<()> {
             frame = read_frame::<ClientFrame, _>(&mut lines) => {
                 match frame {
                     Ok(Some(ClientFrame::Publish { payload })) => {
-                        match host.publish(payload).await {
-                            Ok(event) => {
+                        let event = host.create_event(payload);
+                        let event_id = event.id().clone();
+                        let author = event.author().clone();
+
+                        if frames_tx
+                            .send(ServerFrame::Event {
+                                event: event.clone(),
+                            })
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+
+                        match host.publish(event).await {
+                            Ok(()) => {
                                 info!(
-                                    event_id = %event.id(),
-                                    author = %event.author(),
+                                    event_id = %event_id,
+                                    author = %author,
                                     "published event"
                                 );
                             }

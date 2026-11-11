@@ -10,6 +10,7 @@ import java.util.Locale;
 
 import com.locap2p.demo.model.Direction;
 import com.locap2p.demo.model.Position;
+import com.locap2p.demo.model.PositionEvent;
 
 public final class Main {
     private Main() {
@@ -32,17 +33,20 @@ public final class Main {
         }
 
         try (FrameworkClient client = FrameworkClient.start(hostBinary)) {
-            WorldState world = new WorldState(client.nodeId());
-            client.listen(message -> handleServerMessage(world, message));
+            ApplicationState state = new ApplicationState(
+                    client.nodeId(),
+                    new Position(0, 0));
+            client.listen(message -> handleServerMessage(state, message));
 
             System.out.println("Node: " + client.nodeId());
             System.out.println("Commands: up, down, left, right, pos, quit");
 
-            readCommands(client, world);
+            readCommands(client, state);
         }
     }
 
-    private static void readCommands(FrameworkClient client, WorldState world) throws IOException {
+    private static void readCommands(FrameworkClient client, ApplicationState state)
+            throws IOException {
         BufferedReader input = new BufferedReader(
                 new InputStreamReader(System.in, StandardCharsets.UTF_8));
 
@@ -57,26 +61,28 @@ public final class Main {
                 case "quit" -> {
                     return;
                 }
-                case "pos" -> printLocal(world.localPosition());
-                case "up" -> move(client, world, Direction.UP);
-                case "down" -> move(client, world, Direction.DOWN);
-                case "left" -> move(client, world, Direction.LEFT);
-                case "right" -> move(client, world, Direction.RIGHT);
+                case "pos" -> printLocal(state.local());
+                case "up" -> move(client, state, Direction.UP);
+                case "down" -> move(client, state, Direction.DOWN);
+                case "left" -> move(client, state, Direction.LEFT);
+                case "right" -> move(client, state, Direction.RIGHT);
                 default -> System.out.println("unknown command: " + command);
             }
         }
     }
 
-    private static void move(FrameworkClient client, WorldState world, Direction direction)
+    private static void move(FrameworkClient client, ApplicationState state, Direction direction)
             throws IOException {
-        Position position = world.moveLocal(direction);
-        client.publish(position);
-        printLocal(position);
+        Position next = state.local().position().movedBy(direction);
+        client.publish(next);
     }
 
-    private static void handleServerMessage(WorldState world, Protocol.ServerMessage message) {
+    private static void handleServerMessage(
+            ApplicationState state,
+            Protocol.ServerMessage message) {
         switch (message) {
-            case Protocol.ServerMessage.RemoteEvent remote -> handleEvent(world, remote.event());
+            case Protocol.ServerMessage.RemoteEvent remote ->
+                    handleEvent(state, remote.event());
             case Protocol.ServerMessage.PeerJoined joined ->
                     System.out.printf("peer joined: %s%n", joined.nodeId());
             case Protocol.ServerMessage.PeerLeft left ->
@@ -88,25 +94,36 @@ public final class Main {
         }
     }
 
-    private static void handleEvent(WorldState world, Protocol.FrameworkEvent event) {
+    private static void handleEvent(
+            ApplicationState state,
+            Protocol.FrameworkEvent frameworkEvent) {
         try {
-            Position position = Protocol.parsePosition(event.payload());
-            if (world.applyRemote(event.author(), event.seq(), position)) {
+            PositionEvent event = Protocol.parsePositionEvent(frameworkEvent);
+            if (!state.apply(event)) {
+                return;
+            }
+
+            if (state.isLocal(event.author())) {
+                printLocal(event);
+            } else {
                 System.out.printf(
                         "peer %s: (%d, %d)%n",
                         event.author(),
-                        position.x(),
-                        position.y());
+                        event.position().x(),
+                        event.position().y());
             }
         } catch (IOException | IllegalArgumentException error) {
             System.err.printf(
                     "ignored malformed event from %s: %s%n",
-                    event.author(),
+                    frameworkEvent.author(),
                     error.getMessage());
         }
     }
 
-    private static void printLocal(Position position) {
-        System.out.printf("you: (%d, %d)%n", position.x(), position.y());
+    private static void printLocal(PositionEvent event) {
+        System.out.printf(
+                "you: (%d, %d)%n",
+                event.position().x(),
+                event.position().y());
     }
 }

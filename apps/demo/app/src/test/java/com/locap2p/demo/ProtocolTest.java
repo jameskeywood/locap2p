@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import com.locap2p.demo.model.Position;
+import com.locap2p.demo.model.PositionEvent;
 
 class ProtocolTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -38,7 +39,9 @@ class ProtocolTest {
         assertEquals("peer", remote.event().author());
         assertEquals(2, remote.event().seq());
         assertEquals(10, remote.event().timestampNanos());
-        assertEquals(new Position(3, 4), Protocol.parsePosition(remote.event().payload()));
+        assertEquals(
+                new PositionEvent("peer", new Position(3, 4), 2),
+                Protocol.parsePositionEvent(remote.event()));
     }
 
     @Test
