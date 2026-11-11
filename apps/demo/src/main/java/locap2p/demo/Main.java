@@ -27,7 +27,6 @@ public final class Main {
 
             System.out.println("Node: " + client.nodeId());
             System.out.println("Commands: up, down, left, right, pos, quit");
-            client.publish(world.localPosition());
 
             readCommands(client, world);
         }
