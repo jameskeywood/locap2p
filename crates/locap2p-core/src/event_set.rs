@@ -50,13 +50,15 @@ impl EventSet {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
     use crate::NodeId;
 
     #[test]
     fn duplicate_insert_is_ignored() {
         let mut set = EventSet::default();
-        let event = Event::new(NodeId::from("node-a"), "hello", 1);
+        let event = Event::new(NodeId::from("node-a"), 1, json!("hello"), 1);
 
         assert!(set.insert(event.clone()));
         assert!(!set.insert(event));
@@ -67,8 +69,8 @@ mod tests {
     fn merge_is_idempotent() {
         let mut left = EventSet::default();
         let mut right = EventSet::default();
-        left.insert(Event::new(NodeId::from("node-a"), "one", 1));
-        right.insert(Event::new(NodeId::from("node-b"), "two", 2));
+        left.insert(Event::new(NodeId::from("node-a"), 1, json!("one"), 1));
+        right.insert(Event::new(NodeId::from("node-b"), 1, json!("two"), 2));
 
         assert_eq!(left.merge(&right), 1);
         assert_eq!(left.merge(&right), 0);
@@ -79,8 +81,8 @@ mod tests {
     fn merge_is_commutative() {
         let mut left = EventSet::default();
         let mut right = EventSet::default();
-        left.insert(Event::new(NodeId::from("node-a"), "left", 1));
-        right.insert(Event::new(NodeId::from("node-b"), "right", 2));
+        left.insert(Event::new(NodeId::from("node-a"), 1, json!("left"), 1));
+        right.insert(Event::new(NodeId::from("node-b"), 1, json!("right"), 2));
 
         let mut left_then_right = left.clone();
         left_then_right.merge(&right);
@@ -96,9 +98,9 @@ mod tests {
         let mut first = EventSet::default();
         let mut second = EventSet::default();
         let mut third = EventSet::default();
-        first.insert(Event::new(NodeId::from("node-a"), "one", 1));
-        second.insert(Event::new(NodeId::from("node-b"), "two", 2));
-        third.insert(Event::new(NodeId::from("node-c"), "three", 3));
+        first.insert(Event::new(NodeId::from("node-a"), 1, json!("one"), 1));
+        second.insert(Event::new(NodeId::from("node-b"), 1, json!("two"), 2));
+        third.insert(Event::new(NodeId::from("node-c"), 1, json!("three"), 3));
 
         let mut left = first.clone();
         let mut second_then_third = second.clone();

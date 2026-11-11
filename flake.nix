@@ -26,6 +26,8 @@
           buildInputs = [
             pkgs.pkg-config
             pkgs.openssl
+            pkgs.jdk21
+            pkgs.gradle
           ];
         };
       }

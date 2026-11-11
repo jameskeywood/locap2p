@@ -15,6 +15,9 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 ### Building with Cargo
 - https://doc.rust-lang.org/cargo/reference/workspaces.html
 
+### Building with Gradle
+- https://docs.gradle.org/current/userguide/userguide.html
+
 ### Using the Rust programming language
 - https://doc.rust-lang.org/book/
 

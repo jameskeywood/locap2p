@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::GossipError;
 
-/// Default topic used by the demo node.
+/// Default topic used by the framework host.
 pub const DEFAULT_TOPIC: &str = "locap2p/events/v1";
 
 /// A non-empty gossipsub topic name.
