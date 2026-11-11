@@ -1,4 +1,4 @@
-package locap2p.demo;
+package com.locap2p.demo;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
+
+import com.locap2p.demo.model.Position;
 
 class ProtocolTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();

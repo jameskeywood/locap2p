@@ -1,7 +1,11 @@
-package locap2p.demo;
+package com.locap2p.demo;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import com.locap2p.demo.model.Direction;
+import com.locap2p.demo.model.Position;
+import com.locap2p.demo.model.PlayerView;
 
 public final class WorldState {
     private final String localNodeId;

@@ -1,4 +1,4 @@
-package locap2p.demo;
+package com.locap2p.demo;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -7,6 +7,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+
+import com.locap2p.demo.model.Direction;
+import com.locap2p.demo.model.Position;
 
 public final class Main {
     private Main() {

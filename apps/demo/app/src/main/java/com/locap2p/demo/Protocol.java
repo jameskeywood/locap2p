@@ -1,4 +1,4 @@
-package locap2p.demo;
+package com.locap2p.demo;
 
 import java.io.IOException;
 
@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import com.locap2p.demo.model.Position;
 
 public final class Protocol {
     private static final ObjectMapper MAPPER = new ObjectMapper()

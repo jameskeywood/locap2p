@@ -1,4 +1,4 @@
-package locap2p.demo;
+package com.locap2p.demo.model;
 
 public record Position(int x, int y) {
     public Position movedBy(Direction direction) {

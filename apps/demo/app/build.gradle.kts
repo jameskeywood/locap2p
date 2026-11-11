@@ -32,7 +32,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "locap2p.demo.Main"
+    mainClass = "com.locap2p.demo.Main"
 }
 
 tasks.named<Test>("test") {

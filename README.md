@@ -23,3 +23,6 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 
 ### Networking with libp2p
 - https://github.com/libp2p/rust-libp2p
+
+### IPC
+- https://en.wikipedia.org/wiki/Inter-process_communication
