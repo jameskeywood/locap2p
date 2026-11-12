@@ -7,6 +7,8 @@ edition = "2024"
 locap2p-core = { workspace = true }
 locap2p-network = { workspace = true }
 
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 tracing = { workspace = true }

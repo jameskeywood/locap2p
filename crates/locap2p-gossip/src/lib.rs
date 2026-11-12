@@ -1,19 +1,18 @@
-//! Gossip abstraction and its current gossipsub implementation.
+//! Anti-entropy gossip implementation.
 
 use std::future::Future;
 
 use locap2p_core::Event;
 
+mod anti_entropy;
 mod codec;
 mod error;
 mod event;
-mod gossipsub;
-mod topic;
+mod message;
 
+pub use anti_entropy::{AntiEntropyConfig, AntiEntropyGossip};
 pub use error::{CodecError, GossipError};
 pub use event::GossipEvent;
-pub use gossipsub::GossipsubGossip;
-pub use topic::{DEFAULT_TOPIC, Topic};
 
 /// Abstraction over an event dissemination strategy.
 pub trait Gossip: Send {

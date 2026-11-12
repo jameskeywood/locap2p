@@ -1,23 +1,23 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use locap2p_core::{Event, EventSet, NodeId};
+use locap2p_core::{Event, EventStore, NodeId};
 use locap2p_gossip::{Gossip, GossipError, GossipEvent};
 use serde_json::Value;
 
 /// Framework node state driven by application payloads from the IPC layer.
 pub struct Host<G: Gossip> {
     id: NodeId,
-    events: EventSet,
+    store: EventStore,
     next_seq: u64,
     gossip: G,
 }
 
 impl<G: Gossip> Host<G> {
-    /// Creates a host with an empty event set and the given gossip strategy.
-    pub fn new(id: NodeId, gossip: G) -> Self {
+    /// Creates a host with an empty event store and the given gossip strategy.
+    pub fn new(id: NodeId, store: EventStore, gossip: G) -> Self {
         Self {
             id,
-            events: EventSet::default(),
+            store,
             next_seq: 0,
             gossip,
         }
@@ -28,7 +28,7 @@ impl<G: Gossip> Host<G> {
         self.next_seq = self.next_seq.saturating_add(1);
         let event = Event::new(self.id.clone(), self.next_seq, payload, now_nanos());
 
-        self.events.insert(event.clone());
+        self.store.insert(event.clone());
         event
     }
 
@@ -39,7 +39,7 @@ impl<G: Gossip> Host<G> {
 
     /// Inserts an event into local state and returns `true` if it was new.
     pub fn observe(&mut self, event: Event) -> bool {
-        self.events.insert(event)
+        self.store.insert(event)
     }
 
     /// Waits for the next gossip event.

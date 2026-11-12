@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use futures::StreamExt;
-use libp2p::{Swarm, gossipsub};
+use libp2p::{PeerId, Swarm};
 use locap2p_core::NodeId;
 
 use crate::{
     behaviour::Behaviour, config::NetworkConfig, error::NetworkError, event::NetworkEvent,
-    event_handler::SwarmEventHandler, swarm,
+    event::RequestId, event_handler::SwarmEventHandler, swarm,
 };
 
 /// Owns the libp2p swarm and exposes it as a small pollable API.
@@ -32,24 +34,27 @@ impl Network {
         self.node_id.clone()
     }
 
-    /// Subscribes to a gossipsub topic.
-    pub fn subscribe(&mut self, topic: &str) -> Result<(), NetworkError> {
-        self.swarm
-            .behaviour_mut()
-            .gossipsub
-            .subscribe(&gossipsub::IdentTopic::new(topic))
-            .map(|_| ())
-            .map_err(|error| NetworkError::Subscribe(error.to_string()))
+    /// Sends a request to a peer, dialing it if necessary.
+    pub fn request(&mut self, peer: &NodeId, data: Vec<u8>) -> Result<(), NetworkError> {
+        let peer = PeerId::from_str(peer.as_str())
+            .map_err(|error| NetworkError::InvalidPeer(error.to_string()))?;
+
+        self.swarm.behaviour_mut().sync.send_request(&peer, data);
+        Ok(())
     }
 
-    /// Publishes raw bytes to a gossipsub topic.
-    pub fn publish(&mut self, topic: &str, data: Vec<u8>) -> Result<(), NetworkError> {
+    /// Sends a response to an inbound request.
+    pub fn respond(&mut self, request_id: RequestId, data: Vec<u8>) -> Result<(), NetworkError> {
+        let channel = self
+            .handler
+            .take_request(request_id)
+            .ok_or_else(|| NetworkError::Respond(format!("unknown request id {request_id}")))?;
+
         self.swarm
             .behaviour_mut()
-            .gossipsub
-            .publish(gossipsub::IdentTopic::new(topic), data)
-            .map(|_| ())
-            .map_err(|error| NetworkError::Publish(error.to_string()))
+            .sync
+            .send_response(channel, data)
+            .map_err(|_| NetworkError::Respond("response channel closed".to_owned()))
     }
 
     /// Polls the swarm until the next network event is available.

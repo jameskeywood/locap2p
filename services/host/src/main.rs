@@ -1,7 +1,8 @@
 //! Framework host that bridges gossip to an application over stdio.
 
 use anyhow::Result;
-use locap2p_gossip::{GossipEvent, GossipsubGossip, Topic};
+use locap2p_core::EventStore;
+use locap2p_gossip::{AntiEntropyConfig, AntiEntropyGossip, GossipEvent};
 use locap2p_ipc::{ClientFrame, ServerFrame, read_frame, write_frame};
 use locap2p_network::{Network, NetworkConfig};
 use tokio::io::{AsyncBufReadExt, BufReader, stdout};
@@ -19,8 +20,9 @@ async fn main() -> Result<()> {
 
     let network = Network::start(NetworkConfig::default())?;
     let node_id = network.local_node_id();
-    let gossip = GossipsubGossip::start(network, Topic::default())?;
-    let mut host = Host::new(node_id.clone(), gossip);
+    let store = EventStore::default();
+    let gossip = AntiEntropyGossip::start(network, store.clone(), AntiEntropyConfig::default())?;
+    let mut host = Host::new(node_id.clone(), store, gossip);
 
     let (frames_tx, frames_rx) = mpsc::channel(64);
     let writer = tokio::spawn(write_frames(frames_rx));
@@ -93,9 +95,8 @@ async fn main() -> Result<()> {
             event = host.next_event() => {
                 match event {
                     Some(GossipEvent::Event(event)) => {
-                        if host.observe(event.clone())
-                            && frames_tx.send(ServerFrame::Event { event }).await.is_err()
-                        {
+                        host.observe(event.clone());
+                        if frames_tx.send(ServerFrame::Event { event }).await.is_err() {
                             break;
                         }
                     }
