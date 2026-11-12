@@ -15,6 +15,7 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 ### Build tools
 - Cargo: https://doc.rust-lang.org/cargo/reference/workspaces.html
 - Gradle: https://www.rfc-editor.org/info/rfc6762/
+- Checkstyle plugin: https://checkstyle.org/getting-started.html
 
 ### Programming
 - Rust book: https://doc.rust-lang.org/book/
