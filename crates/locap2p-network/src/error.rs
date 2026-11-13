@@ -7,8 +7,10 @@ pub enum NetworkError {
     Build(String),
     #[error("failed to listen on an address: {0}")]
     Listen(String),
-    #[error("failed to subscribe to topic: {0}")]
-    Subscribe(String),
-    #[error("failed to publish message: {0}")]
-    Publish(String),
+    #[error("invalid peer id: {0}")]
+    InvalidPeer(String),
+    #[error("failed to send request: {0}")]
+    Request(String),
+    #[error("failed to send response: {0}")]
+    Respond(String),
 }

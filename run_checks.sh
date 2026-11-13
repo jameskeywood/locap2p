@@ -2,6 +2,8 @@ set -euo pipefail
 
 cargo check --workspace
 
+cargo check -p locap2p-gossip --all-targets
+
 cargo fmt --all -- --check
 
 cargo clippy --workspace --all-targets -- -D warnings

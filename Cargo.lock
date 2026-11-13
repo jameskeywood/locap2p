@@ -306,6 +306,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "cbor4ii"
+version = "1.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cae341ca01ee91c1e68cbcbd9f08e5c9fb6171c7daed060625563232520d37ae"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "cc"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -804,6 +813,16 @@ dependencies = [
  "futures-io",
  "futures-sink",
  "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-bounded"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2c93f4727951884ba6185c9a38379d94aba63c11c5cd14f2664062b99efb85a"
+dependencies = [
+ "futures-timer",
  "futures-util",
 ]
 
@@ -1538,6 +1557,7 @@ dependencies = [
  "libp2p-metrics",
  "libp2p-noise",
  "libp2p-quic",
+ "libp2p-request-response",
  "libp2p-swarm",
  "libp2p-tcp",
  "libp2p-upnp",
@@ -1740,6 +1760,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "libp2p-request-response"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca1d1f3a4d7b7080eb959098f276f57ecbc3102f7d3d46f109ccdaa00d2842d9"
+dependencies = [
+ "cbor4ii",
+ "futures",
+ "futures-bounded",
+ "libp2p-core",
+ "libp2p-identity",
+ "libp2p-swarm",
+ "rand",
+ "serde",
+ "smallvec",
+ "tracing",
+]
+
+[[package]]
 name = "libp2p-swarm"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1865,8 +1903,10 @@ version = "0.1.0"
 dependencies = [
  "locap2p-core",
  "locap2p-network",
+ "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "tokio",
  "tracing",
 ]
 
@@ -1900,7 +1940,6 @@ dependencies = [
 name = "locap2p-network"
 version = "0.1.0"
 dependencies = [
- "blake3",
  "futures",
  "libp2p",
  "locap2p-core",
