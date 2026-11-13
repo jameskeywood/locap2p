@@ -3,9 +3,7 @@
 mod event;
 mod event_set;
 mod id;
-mod store;
 
 pub use event::{Event, EventError};
 pub use event_set::EventSet;
 pub use id::{EventId, NodeId};
-pub use store::EventStore;

@@ -16,7 +16,10 @@ pub use event::GossipEvent;
 
 /// Abstraction over an event dissemination strategy.
 pub trait Gossip: Send {
-    /// Publishes an event to the gossip network.
+    /// Integrates an event into local state and disseminates it to peers.
+    ///
+    /// Implementations emit the event as [`GossipEvent::Event`] when it is
+    /// newly integrated. Events that are already known are ignored.
     fn publish(&mut self, event: Event) -> impl Future<Output = Result<(), GossipError>> + Send;
 
     /// Waits for the next gossip event.

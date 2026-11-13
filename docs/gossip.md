@@ -8,6 +8,9 @@ mechanisms:
 - **Eager push** for low publish latency.
 - **Periodic pull** for convergence after loss, disconnection, or late joins.
 
+The application-facing side is described in [ipc.md](ipc.md), and peer discovery
+is described in [discovery.md](discovery.md).
+
 ## Transport and discovery
 
 libp2p provides transports, connections, and mDNS discovery. Events are carried
@@ -39,15 +42,15 @@ before being integrated.
 Every sync interval, a node:
 
 1. Selects up to `fanout` peers using a round-robin cursor.
-2. Sends `Pull { have: store.summary() }`.
+2. Sends `Pull { have: EventSet::summary() }`.
 3. Receives events it lacks in a `PullResponse`.
-4. Verifies and inserts them into the `EventStore`.
-5. Emits only newly inserted events to the application.
+4. Verifies and integrates them into the gossip-owned `EventSet`.
+5. Emits only newly integrated events to the application.
 
 The responder computes:
 
 ```rust
-store.missing_from(&requester_ids, max_events_per_response)
+EventSet::missing_from(&requester_ids, max_events_per_response)
 ```
 
 Responses are capped to keep individual messages bounded. If more events are
@@ -57,16 +60,18 @@ missing, they are obtained on later pulls.
 
 When an event is published:
 
-1. It is inserted into the local `EventStore`.
-2. A `Push` containing the event is sent to up to `fanout` peers.
-3. Each receiver validates and integrates the event, then replies `PushAck`.
+1. It is encoded as a `Push` message.
+2. The gossip layer integrates it into its `EventSet`.
+3. If the event is new, it queues `GossipEvent::Event` for the application and
+   sends the `Push` to up to `fanout` peers.
+4. Each receiver validates and integrates the event, then replies `PushAck`.
 
 Push is best-effort and is not forwarded on receipt, so only the first hop is
 immediate. Nodes further away obtain the event through their next pull.
 
 If a push fails, the peer is offline, or the publisher has no peers, pull
 repairs the missing state later. Duplicate events received by both push and pull
-are ignored by `EventStore`.
+are ignored by the gossip layer's `EventSet`.
 
 ## Event loop
 
@@ -86,7 +91,9 @@ loop {
 ```
 
 Pending application events are drained before more network events are processed.
-The swarm only makes progress while `next_event` is being polled.
+Locally published events enter this queue through `publish`; remote events enter
+it when they are newly integrated. The swarm only makes progress while
+`next_event` is being polled.
 
 ## Failure handling
 

@@ -32,60 +32,46 @@ delivery order. This makes `EventSet` a CRDT.
 | `summary` | Returns every known event ID, sorted |
 | `missing_from` | Returns events whose IDs are absent from a given set |
 
-## EventStore
+## Ownership
 
-`EventStore` is a cloneable handle to the node's shared event set:
+`EventSet` is owned by the gossip layer. The host does not hold or mutate
+replicated state. It creates locally authored events and hands them to gossip
+through `Gossip::publish`.
 
-```rust
-#[derive(Clone, Default)]
-pub struct EventStore {
-    inner: Arc<RwLock<EventSet>>,
-}
-```
-
-The host and the gossip layer share one store. This gives the node one logical
-event set, and allows the gossip layer to answer peer requests while the host
-creates and observes events.
-
-The lock is `std::sync::RwLock`. Critical sections are short and synchronous;
-the lock is never held across an `await`.
-
-| Method | Purpose |
-|---|---|
-| `insert(event)` | Inserts an event; returns `true` only if new |
-| `contains(id)` | Checks whether the event is known |
-| `summary()` | Returns every known event ID, sorted |
-| `missing_from(have, limit)` | Returns up to `limit` events not in `have` |
-| `len()` | Number of stored events |
-
-`EventStore` is a shared handle around `EventSet`, not a separate CRDT.
+All integration, deduplication, and answering pull requests happens inside the
+gossip layer. Because the gossip event loop is the only reader and writer of the
+event set, no shared ownership or locking is required.
 
 ## Event lifecycle
 
 Local event:
 
-1. `Host::create_event` creates the event and inserts it into the `EventStore`.
-2. `Gossip::publish` eagerly pushes it to selected peers.
-3. Peers that miss the push obtain it through periodic pull.
+1. `Host::create_event` creates the event without storing it.
+2. `Gossip::publish` encodes the push and integrates the event into the
+   gossip-owned `EventSet`.
+3. If the event is new, gossip queues `GossipEvent::Event` and pushes it to
+   selected peers.
+4. The host forwards the queued event to the application through the normal
+   gossip event stream.
 
 Remote event:
 
 1. The gossip layer receives the event in a `Push` or `PullResponse`.
 2. The event ID is verified.
-3. The event is inserted into the `EventStore`.
+3. The event is integrated into the gossip-owned `EventSet`.
 4. `GossipEvent::Event` is emitted only when insertion reports a new event.
-5. The host observes it idempotently and forwards it to the application.
+5. The host forwards it to the application.
 
-`GossipEvent::Event` means "newly merged event", not merely "an event arrived on
-the wire". This prevents duplicate IPC frames when an event arrives through both
-push and pull.
+`GossipEvent::Event` means "newly integrated event", whether it was created
+locally or received from a peer. This gives the application one event stream and
+prevents duplicate IPC frames when an event arrives through both push and pull.
 
 ## Digest
 
 The digest is the sorted list of all known event IDs:
 
 ```rust
-store.summary() -> Vec<EventId>
+EventSet::summary() -> Vec<EventId>
 ```
 
 A peer can use it to determine precisely which events the sender lacks. The
