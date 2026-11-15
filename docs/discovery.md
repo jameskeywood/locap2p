@@ -9,9 +9,9 @@ The exchange protocol is described in [gossip.md](gossip.md).
 
 ## Node identity
 
-Each host creates a fresh libp2p identity when it starts. The resulting
-`node_id` is the libp2p `PeerId`, is used as the event author, and is sent to
-the application in the `ready` IPC frame. It changes when the host restarts.
+Each host creates a fresh libp2p identity when it starts. The resulting peer
+identifier is used as the event author and is sent to the application in the
+ready frame. It changes when the host restarts.
 
 ## Listening
 
@@ -28,11 +28,12 @@ Port `0` asks the operating system to assign an ephemeral port.
 
 1. mDNS advertises the host and listens for other nodes.
 2. When peers are discovered, the network layer groups all reported addresses
-   by peer ID and registers them with the swarm.
-3. The peer is reported once as `PeerDiscovered`, which gossip turns into
-   `PeerJoined` for the application.
+   by peer identifier and registers them with the swarm.
+3. Each peer is reported once when it is first discovered. Gossip forwards this
+   to the application as a peer-joined notification.
 4. When mDNS expires a peer, the network layer removes it from the discovered
-   set and reports `PeerExpired`. Gossip turns this into `PeerLeft`.
+   set and reports the expiry. Gossip forwards this as a peer-left
+   notification.
 5. Discovery does not connect to peers by itself. The first pull or push to a
    peer triggers a libp2p dial using the registered addresses.
 
@@ -43,7 +44,7 @@ network discovery.
 
 - Discovery is LAN-wide. There is no application-level network ID or topic
   filter, so every discovered peer is treated as a gossip peer.
-- A discovered peer that does not support `/locap2p/sync/1` cannot exchange
-  events; its sync requests fail.
+- A discovered peer that does not support the synchronization protocol cannot
+  exchange events; its sync requests fail.
 - mDNS expiry removes the peer from gossip selection but does not close an
   existing connection or remove its addresses from the swarm.
