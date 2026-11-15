@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::{Event, EventId};
 
@@ -41,6 +41,21 @@ impl EventSet {
 
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
+    }
+
+    /// Returns the IDs of every event in the set, in sorted order.
+    pub fn summary(&self) -> Vec<EventId> {
+        self.events.keys().cloned().collect()
+    }
+
+    /// Returns events not present in `have`, up to `limit` events.
+    pub fn missing_from(&self, have: &HashSet<EventId>, limit: usize) -> Vec<Event> {
+        self.events
+            .values()
+            .filter(|event| !have.contains(event.id()))
+            .take(limit)
+            .cloned()
+            .collect()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Event> {
@@ -112,6 +127,49 @@ mod tests {
         right.merge(&third);
 
         assert_eq!(sorted_ids(&left), sorted_ids(&right));
+    }
+
+    #[test]
+    fn summary_contains_every_event_id() {
+        let mut set = EventSet::default();
+        let first = Event::new(NodeId::from("node-a"), 1, json!("one"), 1);
+        let second = Event::new(NodeId::from("node-b"), 1, json!("two"), 2);
+        set.insert(first.clone());
+        set.insert(second.clone());
+
+        let mut summary = set.summary();
+        summary.sort();
+
+        let mut expected = vec![first.id().clone(), second.id().clone()];
+        expected.sort();
+
+        assert_eq!(summary, expected);
+    }
+
+    #[test]
+    fn missing_from_returns_only_unknown_events() {
+        let mut set = EventSet::default();
+        let known = Event::new(NodeId::from("node-a"), 1, json!("known"), 1);
+        let missing = Event::new(NodeId::from("node-b"), 1, json!("missing"), 2);
+        set.insert(known.clone());
+        set.insert(missing.clone());
+
+        let have = HashSet::from([known.id().clone()]);
+        let events = set.missing_from(&have, 10);
+
+        assert_eq!(events, vec![missing]);
+    }
+
+    #[test]
+    fn missing_from_respects_limit() {
+        let mut set = EventSet::default();
+        for seq in 1..=3 {
+            set.insert(Event::new(NodeId::from("node-a"), seq, json!(seq), seq));
+        }
+
+        let events = set.missing_from(&HashSet::new(), 2);
+
+        assert_eq!(events.len(), 2);
     }
 
     fn sorted_ids(set: &EventSet) -> Vec<String> {

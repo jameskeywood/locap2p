@@ -1,63 +1,94 @@
-use locap2p_core::{Event, NodeId};
+use crate::{CodecError, message::SyncMessage};
 
-use crate::CodecError;
-
-pub(crate) fn encode(event: &Event) -> Result<Vec<u8>, serde_json::Error> {
-    serde_json::to_vec(event)
+pub(crate) fn encode(message: &SyncMessage) -> Result<Vec<u8>, serde_json::Error> {
+    serde_json::to_vec(message)
 }
 
-pub(crate) fn decode(source: &NodeId, data: &[u8]) -> Result<Event, CodecError> {
-    let event: Event = serde_json::from_slice(data)?;
-    event.verify_id().map_err(|_| CodecError::InvalidEventId)?;
+pub(crate) fn decode(data: &[u8]) -> Result<SyncMessage, CodecError> {
+    let message: SyncMessage = serde_json::from_slice(data)?;
+    validate(&message)?;
+    Ok(message)
+}
 
-    if event.author() != source {
-        return Err(CodecError::AuthorMismatch);
+fn validate(message: &SyncMessage) -> Result<(), CodecError> {
+    let events = match message {
+        SyncMessage::PullResponse { events } | SyncMessage::Push { events } => events,
+        SyncMessage::Pull { .. } | SyncMessage::PushAck => return Ok(()),
+    };
+
+    for event in events {
+        event.verify_id().map_err(|_| CodecError::InvalidEventId)?;
     }
 
-    Ok(event)
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use locap2p_core::{Event, NodeId};
+    use serde_json::{Value, json};
 
     use super::*;
 
-    fn event(author: &str, payload: &str, timestamp_nanos: u64) -> Event {
-        Event::new(NodeId::from(author), 1, json!(payload), timestamp_nanos)
+    fn event(author: &str, payload: Value, timestamp_nanos: u64) -> Event {
+        Event::new(NodeId::from(author), 1, payload, timestamp_nanos)
     }
 
     #[test]
-    fn event_round_trips() {
-        let original = event("node-a", "hello", 10);
-        let encoded = encode(&original).unwrap();
-        let decoded = decode(original.author(), &encoded).unwrap();
+    fn pull_round_trips() {
+        let message = SyncMessage::Pull {
+            have: vec![event("node-a", json!("hello"), 10).id().clone()],
+        };
 
-        assert_eq!(decoded, original);
+        assert_eq!(decode(&encode(&message).unwrap()).unwrap(), message);
     }
 
     #[test]
-    fn author_mismatch_is_rejected() {
-        let original = event("node-a", "hello", 10);
-        let encoded = encode(&original).unwrap();
+    fn push_round_trips() {
+        let message = SyncMessage::Push {
+            events: vec![event("node-a", json!("hello"), 10)],
+        };
 
-        assert!(matches!(
-            decode(&NodeId::from("node-b"), &encoded),
-            Err(CodecError::AuthorMismatch)
-        ));
+        assert_eq!(decode(&encode(&message).unwrap()).unwrap(), message);
+    }
+
+    #[test]
+    fn pull_response_round_trips() {
+        let message = SyncMessage::PullResponse {
+            events: vec![event("node-a", json!("hello"), 10)],
+        };
+
+        assert_eq!(decode(&encode(&message).unwrap()).unwrap(), message);
+    }
+
+    #[test]
+    fn push_ack_round_trips() {
+        let message = SyncMessage::PushAck;
+
+        assert_eq!(decode(&encode(&message).unwrap()).unwrap(), message);
     }
 
     #[test]
     fn tampered_event_is_rejected() {
-        let original = event("node-a", "hello", 10);
-        let encoded = encode(&original).unwrap();
+        let message = SyncMessage::Push {
+            events: vec![event("node-a", json!("hello"), 10)],
+        };
+        let encoded = encode(&message).unwrap();
         let mut value: serde_json::Value = serde_json::from_slice(&encoded).unwrap();
-        value["payload"] = json!("tampered");
+        value["events"][0]["payload"] = json!("tampered");
         let tampered = serde_json::to_vec(&value).unwrap();
 
-        assert!(matches!(
-            decode(original.author(), &tampered),
-            Err(CodecError::InvalidEventId)
-        ));
+        assert!(matches!(decode(&tampered), Err(CodecError::InvalidEventId)));
+    }
+
+    #[test]
+    fn relayed_event_is_accepted() {
+        let message = SyncMessage::PullResponse {
+            events: vec![event("node-a", json!("hello"), 10)],
+        };
+
+        let decoded = decode(&encode(&message).unwrap()).unwrap();
+
+        assert_eq!(decoded, message);
     }
 }

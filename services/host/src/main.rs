@@ -1,7 +1,7 @@
 //! Framework host that bridges gossip to an application over stdio.
 
 use anyhow::Result;
-use locap2p_gossip::{GossipEvent, GossipsubGossip, Topic};
+use locap2p_gossip::{AntiEntropyConfig, AntiEntropyGossip, GossipEvent};
 use locap2p_ipc::{ClientFrame, ServerFrame, read_frame, write_frame};
 use locap2p_network::{Network, NetworkConfig};
 use tokio::io::{AsyncBufReadExt, BufReader, stdout};
@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
 
     let network = Network::start(NetworkConfig::default())?;
     let node_id = network.local_node_id();
-    let gossip = GossipsubGossip::start(network, Topic::default())?;
+    let gossip = AntiEntropyGossip::start(network, AntiEntropyConfig::default())?;
     let mut host = Host::new(node_id.clone(), gossip);
 
     let (frames_tx, frames_rx) = mpsc::channel(64);
@@ -42,16 +42,6 @@ async fn main() -> Result<()> {
                         let event = host.create_event(payload);
                         let event_id = event.id().clone();
                         let author = event.author().clone();
-
-                        if frames_tx
-                            .send(ServerFrame::Event {
-                                event: event.clone(),
-                            })
-                            .await
-                            .is_err()
-                        {
-                            break;
-                        }
 
                         match host.publish(event).await {
                             Ok(()) => {
@@ -93,9 +83,7 @@ async fn main() -> Result<()> {
             event = host.next_event() => {
                 match event {
                     Some(GossipEvent::Event(event)) => {
-                        if host.observe(event.clone())
-                            && frames_tx.send(ServerFrame::Event { event }).await.is_err()
-                        {
+                        if frames_tx.send(ServerFrame::Event { event }).await.is_err() {
                             break;
                         }
                     }

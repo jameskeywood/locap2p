@@ -1,35 +1,24 @@
-use std::time::Duration;
+use libp2p::{StreamProtocol, identity::Keypair, mdns, request_response, swarm::NetworkBehaviour};
 
-use libp2p::{gossipsub, identity::Keypair, mdns, swarm::NetworkBehaviour};
+/// Versioned application protocol used for anti-entropy exchanges.
+pub(crate) const SYNC_PROTOCOL: StreamProtocol = StreamProtocol::new("/locap2p/sync/1");
 
 #[derive(NetworkBehaviour)]
 pub(crate) struct Behaviour {
-    pub(crate) gossipsub: gossipsub::Behaviour,
+    pub(crate) sync: request_response::cbor::Behaviour<Vec<u8>, Vec<u8>>,
     pub(crate) mdns: mdns::tokio::Behaviour,
 }
 
 impl Behaviour {
     pub(crate) fn new(key: &Keypair) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let message_id_fn = |message: &gossipsub::Message| {
-            gossipsub::MessageId::from(blake3::hash(&message.data).to_hex().to_string())
-        };
-
-        let gossipsub_config = gossipsub::ConfigBuilder::default()
-            .heartbeat_interval(Duration::from_secs(1))
-            .validation_mode(gossipsub::ValidationMode::Strict)
-            .message_id_fn(message_id_fn)
-            .build()
-            .map_err(std::io::Error::other)?;
-
-        let gossipsub = gossipsub::Behaviour::new(
-            gossipsub::MessageAuthenticity::Signed(key.clone()),
-            gossipsub_config,
-        )
-        .map_err(std::io::Error::other)?;
+        let sync = request_response::cbor::Behaviour::<Vec<u8>, Vec<u8>>::new(
+            [(SYNC_PROTOCOL, request_response::ProtocolSupport::Full)],
+            request_response::Config::default(),
+        );
 
         let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())
             .map_err(std::io::Error::other)?;
 
-        Ok(Self { gossipsub, mdns })
+        Ok(Self { sync, mdns })
     }
 }

@@ -10,6 +10,6 @@ mod swarm;
 
 pub use config::NetworkConfig;
 pub use error::NetworkError;
-pub use event::NetworkEvent;
+pub use event::{NetworkEvent, RequestId};
 pub use libp2p::Multiaddr;
 pub use network::Network;
