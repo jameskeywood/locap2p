@@ -21,13 +21,6 @@ struct Behaviour {
     ping: ping::Behaviour,
 }
 
-/// Prints the relay endpoints needed in the application configuration.
-pub fn print_info(config: &RelayConfig) -> anyhow::Result<()> {
-    let (_, peer_id, endpoints) = prepare(config)?;
-    print_info_block(peer_id, &endpoints);
-    Ok(())
-}
-
 /// Runs the relay service until the process is terminated.
 pub async fn run(config: RelayConfig) -> anyhow::Result<()> {
     let (identity, peer_id, endpoints) = prepare(&config)?;

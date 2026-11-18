@@ -59,6 +59,5 @@ locap2p-bootstrap --config config/services/bootstrap.local.toml
 locap2p-relay --config config/services/relay.local.toml
 ```
 
-Use `--print-info` to print the endpoint block without starting the service.
 Service endpoints must use fixed non-zero TCP ports. When listening on
 `0.0.0.0`, configure `advertise_addrs` with the address clients should use.

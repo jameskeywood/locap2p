@@ -27,13 +27,6 @@ struct Behaviour {
     identify: identify::Behaviour,
 }
 
-/// Prints the bootstrap endpoints needed in the application configuration.
-pub fn print_info(config: &BootstrapConfig) -> anyhow::Result<()> {
-    let (_, peer_id, endpoints) = prepare(config)?;
-    print_info_block(peer_id, &endpoints);
-    Ok(())
-}
-
 /// Runs the bootstrap service until the process is terminated.
 pub async fn run(config: BootstrapConfig) -> anyhow::Result<()> {
     let (identity, peer_id, endpoints) = prepare(&config)?;

@@ -29,8 +29,8 @@ Connectivity is configured by the application:
 Every relay endpoint must include `/p2p/<peer-id>` so the expected relay peer is
 pinned.
 
-The relay service prints its complete endpoint block on startup, or with
-`--print-info`. Copy that endpoint into `connectivity.relay`.
+The relay service prints its complete endpoint block on startup. Copy that
+endpoint into `connectivity.relay`.
 
 ## Relay flow
 

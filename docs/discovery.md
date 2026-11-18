@@ -29,8 +29,8 @@ Discovery is configured by the application:
 Every bootstrap endpoint must include `/p2p/<peer-id>` so the expected service
 peer is pinned.
 
-The bootstrap service prints its complete endpoint block on startup, or with
-`--print-info`. Copy that endpoint into `discovery.bootstrap`.
+The bootstrap service prints its complete endpoint block on startup. Copy that
+endpoint into `discovery.bootstrap`.
 
 ## Sessions
 
