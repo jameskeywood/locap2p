@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import com.locap2p.demo.config.FrameworkConfig;
 import com.locap2p.demo.model.Position;
 import com.locap2p.demo.model.PositionEvent;
 
@@ -56,6 +57,13 @@ public final class Protocol {
             case "error" -> new ServerMessage.Error(root.path("message").asText());
             default -> throw new IllegalArgumentException("unknown frame type: " + type);
         };
+    }
+
+    public static String configure(FrameworkConfig config) throws IOException {
+        ObjectNode frame = MAPPER.createObjectNode();
+        frame.put("type", "configure");
+        frame.set("config", MAPPER.readTree(config.toJson()));
+        return frame.toString();
     }
 
     public static String publish(Object payload) {

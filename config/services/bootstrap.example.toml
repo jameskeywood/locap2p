@@ -1,0 +1,13 @@
+# Local bootstrap service example.
+# Copy to bootstrap.local.toml and adjust paths/addresses.
+
+listen_addrs = ["/ip4/127.0.0.1/tcp/4002"]
+
+# For a public deployment, advertise a reachable address and listen on all
+# interfaces:
+#
+# listen_addrs = ["/ip4/0.0.0.0/tcp/4002"]
+# advertise_addrs = ["/ip4/203.0.113.10/tcp/4002"]
+
+identity_path = "target/bootstrap/bootstrap.key"
+max_peers_per_session = 256

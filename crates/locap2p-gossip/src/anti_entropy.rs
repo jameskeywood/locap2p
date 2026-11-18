@@ -1,35 +1,12 @@
-use std::{
-    collections::{BTreeSet, HashSet, VecDeque},
-    time::Duration,
-};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 
+use locap2p_config::GossipConfig;
 use locap2p_core::{Event, EventId, EventSet, NodeId};
 use locap2p_network::{Network, NetworkEvent, RequestId};
 use tokio::time::{Interval, MissedTickBehavior, interval};
 use tracing::{debug, warn};
 
 use crate::{Gossip, GossipError, GossipEvent, codec, message::SyncMessage};
-
-/// Configuration for the anti-entropy gossip layer.
-#[derive(Debug, Clone)]
-pub struct AntiEntropyConfig {
-    /// How often a node pulls missing events from its peers.
-    pub sync_interval: Duration,
-    /// Number of peers contacted per pull or eager push.
-    pub fanout: usize,
-    /// Maximum number of events returned in a single pull response.
-    pub max_events_per_response: usize,
-}
-
-impl Default for AntiEntropyConfig {
-    fn default() -> Self {
-        Self {
-            sync_interval: Duration::from_secs(2),
-            fanout: 3,
-            max_events_per_response: 256,
-        }
-    }
-}
 
 #[derive(Default)]
 struct PeerSelector {
@@ -62,7 +39,7 @@ impl PeerSelector {
 pub struct AntiEntropyGossip {
     network: Network,
     store: EventSet,
-    config: AntiEntropyConfig,
+    config: GossipConfig,
     peers: BTreeSet<NodeId>,
     pending: VecDeque<GossipEvent>,
     ticker: Interval,
@@ -71,12 +48,12 @@ pub struct AntiEntropyGossip {
 
 impl AntiEntropyGossip {
     /// Creates an anti-entropy gossip instance.
-    pub fn start(network: Network, config: AntiEntropyConfig) -> Result<Self, GossipError> {
-        if config.sync_interval.is_zero() {
+    pub fn start(network: Network, config: GossipConfig) -> Result<Self, GossipError> {
+        if config.sync_interval_ms == 0 {
             return Err(GossipError::InvalidConfig("sync interval must be non-zero"));
         }
 
-        let mut ticker = interval(config.sync_interval);
+        let mut ticker = interval(config.sync_interval());
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         Ok(Self {
@@ -255,17 +232,39 @@ impl Gossip for AntiEntropyGossip {
 
 #[cfg(test)]
 mod tests {
-    use locap2p_network::NetworkConfig;
+    use locap2p_config::{
+        ApplicationConfig, ApplicationId, CONFIG_SCHEMA_VERSION, ConnectivityConfig,
+        DiscoveryConfig, FrameworkConfig, GossipConfig, IdentityConfig, NetworkConfig, SessionId,
+    };
     use serde_json::json;
 
     use super::*;
 
     fn gossip() -> AntiEntropyGossip {
-        let network = Network::start(NetworkConfig {
-            listen_addrs: Vec::new(),
-        })
-        .unwrap();
-        AntiEntropyGossip::start(network, AntiEntropyConfig::default()).unwrap()
+        let directory = tempfile::tempdir().unwrap();
+        let config = FrameworkConfig {
+            schema_version: CONFIG_SCHEMA_VERSION,
+            application: ApplicationConfig {
+                id: ApplicationId::new("locap2p-test/1").unwrap(),
+                session: SessionId::new("test").unwrap(),
+            },
+            identity: IdentityConfig {
+                path: directory.path().join("node.key"),
+            },
+            network: NetworkConfig {
+                listen_addrs: Vec::new(),
+                request_timeout_ms: 1_000,
+            },
+            discovery: DiscoveryConfig {
+                bootstrap: Vec::new(),
+                membership_ttl_ms: 10_000,
+                expiry_grace_ms: 0,
+            },
+            connectivity: ConnectivityConfig::default(),
+            gossip: GossipConfig::default(),
+        };
+        let network = Network::start(&config).unwrap();
+        AntiEntropyGossip::start(network, GossipConfig::default()).unwrap()
     }
 
     fn event(seq: u64) -> Event {

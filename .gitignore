@@ -26,3 +26,10 @@ rustc-ice-*.txt
 # Java / Gradle
 .gradle/
 **/build/
+
+# Local application configuration
+config/*.local.json
+config/services/*.local.toml
+
+# Deployment secrets
+deploy/.env

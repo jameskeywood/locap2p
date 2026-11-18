@@ -1,0 +1,20 @@
+# Local relay service example.
+# Copy to relay.local.toml and adjust paths/addresses.
+
+listen_addrs = ["/ip4/127.0.0.1/tcp/4001"]
+
+# For a public deployment, advertise a reachable address and listen on all
+# interfaces:
+#
+# listen_addrs = ["/ip4/0.0.0.0/tcp/4001"]
+# advertise_addrs = ["/ip4/203.0.113.10/tcp/4001"]
+
+identity_path = "target/relay/relay.key"
+
+[limits]
+max_reservations = 512
+max_reservations_per_peer = 16
+max_circuits = 256
+max_circuits_per_peer = 16
+max_circuit_duration_ms = 600000
+max_circuit_bytes = 1048576
