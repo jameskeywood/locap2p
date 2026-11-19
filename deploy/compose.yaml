@@ -27,7 +27,7 @@ services:
       RUST_LOG: ${RUST_LOG}
     volumes:
       - ${BOOTSTRAP_CONFIG}:/config/bootstrap.toml:ro
-      - ../state/bootstrap:/app/state/bootstrap
+      - ${BOOTSTRAP_STATE}:/app/state/bootstrap
     logging:
       driver: json-file
       options:
@@ -60,7 +60,7 @@ services:
       RUST_LOG: ${RUST_LOG}
     volumes:
       - ${RELAY_CONFIG}:/config/relay.toml:ro
-      - ../state/relay:/app/state/relay
+      - ${RELAY_STATE}:/app/state/relay
     logging:
       driver: json-file
       options:

@@ -13,7 +13,7 @@ for config in "$BOOTSTRAP_CONFIG" "$RELAY_CONFIG"; do
     fi
 done
 
-mkdir -p "$ROOT_DIR/state/bootstrap" "$ROOT_DIR/state/relay"
+mkdir -p "$BOOTSTRAP_STATE" "$RELAY_STATE"
 
 case "${1:-}" in
     --build)

@@ -13,6 +13,8 @@ fi
 
 export BOOTSTRAP_CONFIG="$ROOT_DIR/config/services/bootstrap.$PROFILE.toml"
 export RELAY_CONFIG="$ROOT_DIR/config/services/relay.$PROFILE.toml"
+export BOOTSTRAP_STATE="$ROOT_DIR/state/bootstrap"
+export RELAY_STATE="$ROOT_DIR/state/relay"
 
 compose=(
     docker compose
