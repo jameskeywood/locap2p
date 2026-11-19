@@ -27,9 +27,15 @@ rustc-ice-*.txt
 .gradle/
 **/build/
 
-# Local application configuration
-config/*.local.json
-config/services/*.local.toml
+# Application and service configuration
+config/*
+!config/application.example.json
+!config/services/bootstrap.example.toml
+!config/services/relay.example.toml
 
-# Deployment secrets
+# Application state
+state/
+
+# Deployment state
 deploy/.env
+deploy/known_hosts

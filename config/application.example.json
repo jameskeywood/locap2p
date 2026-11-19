@@ -5,7 +5,7 @@
     "session": "demo"
   },
   "identity": {
-    "path": "target/demo/node.key"
+    "path": "state/demo/node.key"
   },
   "network": {
     "listen_addrs": [
@@ -16,14 +16,14 @@
   },
   "discovery": {
     "bootstrap": [
-      "/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWReplaceWithBootstrapPeerId"
+      "/ip4/203.0.113.10/tcp/4002/p2p/12D3KooWReplaceWithBootstrapPeerId"
     ],
     "membership_ttl_ms": 10000,
     "expiry_grace_ms": 5000
   },
   "connectivity": {
     "relay": [
-      "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWReplaceWithRelayPeerId"
+      "/ip4/203.0.113.10/tcp/4001/p2p/12D3KooWReplaceWithRelayPeerId"
     ],
     "reserve_relay": true,
     "prefer_direct": true,

@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.gradle
+target
+apps
+docs
+config
+deploy
+*.key
+*.pem
+state

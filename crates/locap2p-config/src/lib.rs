@@ -286,7 +286,7 @@ mod tests {
                 session: SessionId::new("demo").unwrap(),
             },
             identity: IdentityConfig {
-                path: PathBuf::from("target/demo/node.key"),
+                path: PathBuf::from("state/demo/node.key"),
             },
             network: NetworkConfig::default(),
             discovery: DiscoveryConfig {
