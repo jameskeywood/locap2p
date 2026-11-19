@@ -1,6 +1,8 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DEPLOY_DIR="$ROOT_DIR/deploy"
 
 if [[ -f "$DEPLOY_DIR/.env" ]]; then
@@ -12,14 +14,11 @@ fi
 
 DROPLET_NAME="${DROPLET_NAME:-locap2p-demo}"
 REMOTE_ROOT="/opt/locap2p"
+PROFILE="remote"
 
 if ! command -v doctl >/dev/null 2>&1; then
     echo "doctl is required" >&2
     exit 1
-fi
-
-if [[ -n "${DIGITALOCEAN_ACCESS_TOKEN:-}" ]]; then
-    export DIGITALOCEAN_ACCESS_TOKEN
 fi
 
 IP="$(doctl compute droplet get "$DROPLET_NAME" --format PublicIPv4 --no-header 2>/dev/null || true)"
@@ -35,4 +34,4 @@ SSH_ARGS=(
 )
 
 ssh "${SSH_ARGS[@]}" "root@$IP" \
-    "cd '$REMOTE_ROOT/deploy' && docker compose down"
+    "cd '$REMOTE_ROOT' && PROFILE='$PROFILE' ./deploy/scripts/down.sh"

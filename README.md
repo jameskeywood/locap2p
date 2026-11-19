@@ -63,6 +63,12 @@ To deploy locally:
 ./deploy/scripts/local-down.sh
 ```
 
+To spin up and teardown a VPS:
+```sh
+./deploy/scripts/vps-up.sh
+./deploy/scripts/vps-down.sh
+```
+
 To deploy to a remote VPS:
 ```sh
 ./deploy/scripts/remote-up.sh
@@ -82,7 +88,7 @@ This project uses DigitalOcean Droplets. But this is just an option.
 1. Create a DigitalOcean account and add billing.
 2. Create a Personal Access Token with read/write access.
 3. Add your SSH public key under **Settings -> Security -> SSH Keys**.
-4. Authenticate `doctl`:
+4. Authenticate `doctl`, using the Personal Access Token:
 
 ```sh
 doctl auth init

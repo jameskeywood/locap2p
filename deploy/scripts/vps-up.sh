@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -20,10 +21,6 @@ DO_IMAGE="${DO_IMAGE:-ubuntu-24-04-x64}"
 if ! command -v doctl >/dev/null 2>&1; then
     echo "doctl is required" >&2
     exit 1
-fi
-
-if [[ -n "${DIGITALOCEAN_ACCESS_TOKEN:-}" ]]; then
-    export DIGITALOCEAN_ACCESS_TOKEN
 fi
 
 if ! doctl compute droplet get "$DROPLET_NAME" >/dev/null 2>&1; then
