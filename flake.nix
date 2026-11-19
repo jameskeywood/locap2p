@@ -28,6 +28,8 @@
             pkgs.openssl
             pkgs.jdk21
             pkgs.gradle
+            pkgs.docker-client
+            pkgs.doctl
           ];
         };
       }

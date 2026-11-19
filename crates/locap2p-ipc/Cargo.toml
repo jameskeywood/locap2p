@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+locap2p-config = { workspace = true }
 locap2p-core = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }

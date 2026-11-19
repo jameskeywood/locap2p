@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import com.locap2p.demo.config.FrameworkConfig;
+
 public final class FrameworkClient implements AutoCloseable {
     private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 
@@ -30,7 +32,8 @@ public final class FrameworkClient implements AutoCloseable {
         this.nodeId = nodeId;
     }
 
-    public static FrameworkClient start(Path hostBinary) throws IOException {
+    public static FrameworkClient start(Path hostBinary, FrameworkConfig config)
+            throws IOException {
         Process process = new ProcessBuilder(hostBinary.toString())
                 .redirectError(ProcessBuilder.Redirect.INHERIT)
                 .start();
@@ -41,12 +44,20 @@ public final class FrameworkClient implements AutoCloseable {
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
 
+            writer.write(Protocol.configure(config));
+            writer.newLine();
+            writer.flush();
+
             String readyLine = reader.readLine();
             if (readyLine == null) {
                 throw new IOException("framework host exited before becoming ready");
             }
 
             Protocol.ServerMessage first = Protocol.parseServerMessage(readyLine);
+            if (first instanceof Protocol.ServerMessage.Error error) {
+                throw new IOException(
+                        "framework host rejected configuration: " + error.message());
+            }
             if (!(first instanceof Protocol.ServerMessage.Ready ready)) {
                 throw new IOException("expected ready frame but received: " + first);
             }

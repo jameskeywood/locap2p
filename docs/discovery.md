@@ -2,49 +2,74 @@
 
 ## Overview
 
-Nodes find each other on the local network using libp2p mDNS. There are no
-bootstrap peers, DHT lookups, or relays; discovery is limited to the LAN.
+Nodes find other members of their session through a bootstrap service. The
+bootstrap is a lightweight control-plane rendezvous point. It does not carry
+application traffic and is never treated as a gossip peer.
 
-The exchange protocol is described in [gossip.md](gossip.md).
+Relay and direct-connection behaviour is described in
+[connectivity.md](connectivity.md). Node identity is described in
+[identity.md](identity.md).
 
-## Node identity
+## Configuration
 
-Each host creates a fresh libp2p identity when it starts. The resulting peer
-identifier is used as the event author and is sent to the application in the
-ready frame. It changes when the host restarts.
+Discovery is configured by the application:
 
-## Listening
+```json
+{
+  "discovery": {
+    "bootstrap": [
+      "/ip4/127.0.0.1/tcp/4002/p2p/12D3KooW..."
+    ],
+    "membership_ttl_ms": 10000,
+    "expiry_grace_ms": 5000
+  }
+}
+```
 
-By default the host listens on:
+Every bootstrap endpoint must include `/p2p/<peer-id>` so the expected service
+peer is pinned.
 
-| Transport | Address |
-|---|---|
-| TCP + Noise + Yamux | `/ip4/0.0.0.0/tcp/0` |
-| QUIC | `/ip4/0.0.0.0/udp/0/quic-v1` |
+The bootstrap service prints its complete endpoint block on startup. Copy that
+endpoint into `discovery.bootstrap`.
 
-Port `0` asks the operating system to assign an ephemeral port.
+## Sessions
 
-## Discovery flow
+A node belongs to an application and session:
 
-1. mDNS advertises the host and listens for other nodes.
-2. When peers are discovered, the network layer groups all reported addresses
-   by peer identifier and registers them with the swarm.
-3. Each peer is reported once when it is first discovered. Gossip forwards this
-   to the application as a peer-joined notification.
-4. When mDNS expires a peer, the network layer removes it from the discovered
-   set and reports the expiry. Gossip forwards this as a peer-left
-   notification.
-5. Discovery does not connect to peers by itself. The first pull or push to a
-   peer triggers a libp2p dial using the registered addresses.
+```json
+{
+  "application": {
+    "id": "locap2p-demo/1",
+    "session": "ABC123"
+  }
+}
+```
 
-Connections are authenticated by libp2p. mDNS itself is unauthenticated local
-network discovery.
+The bootstrap registry is keyed by the application ID and session ID. Nodes in
+different applications or sessions do not see each other through the same
+bootstrap service. The synchronization protocol is also scoped by the
+application/session hash.
+
+## Bootstrap flow
+
+1. The node starts listening on its configured transport addresses.
+2. It announces itself to the bootstrap service with its application, session,
+   addresses and membership TTL.
+3. The bootstrap returns the other members of the session.
+4. The node registers returned peer addresses with libp2p and reports newly seen
+   peers as `PeerDiscovered`.
+5. The node repeats the announce at roughly one third of the membership TTL.
+6. If a peer has not appeared in a successful bootstrap response for the TTL plus
+   the configured expiry grace period, the node reports `PeerExpired`.
+
+The bootstrap stores registrations in memory. A registration expires after its
+TTL, so a crashed node disappears without an explicit leave message.
 
 ## Scope and limits
 
-- Discovery is LAN-wide. There is no application-level network ID or topic
-  filter, so every discovered peer is treated as a gossip peer.
-- A discovered peer that does not support the synchronization protocol cannot
-  exchange events; its sync requests fail.
-- mDNS expiry removes the peer from gossip selection but does not close an
-  existing connection or remove its addresses from the swarm.
+- The bootstrap service is a discovery dependency. If it is unavailable,
+  existing connections continue, but the node cannot learn new peers until it
+  reconnects.
+- Discovery is private only to the extent that the session ID is hard to guess.
+  Treat session IDs as capabilities if sessions should not be public.
+- Bootstrap resource limits are configured statically by the service operator.

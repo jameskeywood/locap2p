@@ -1,0 +1,29 @@
+[package]
+name = "locap2p-relay"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+locap2p-identity = { workspace = true }
+
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+futures = { workspace = true }
+libp2p = { workspace = true, features = [
+    "dns",
+    "identify",
+    "macros",
+    "noise",
+    "ping",
+    "quic",
+    "relay",
+    "tcp",
+    "tokio",
+    "yamux",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

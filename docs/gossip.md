@@ -8,20 +8,22 @@ mechanisms:
 - **Eager push** for low publish latency.
 - **Periodic pull** for convergence after loss, disconnection, or late joins.
 
-The application-facing side is described in [ipc.md](ipc.md), and peer discovery
-is described in [discovery.md](discovery.md).
+The application-facing side is described in [ipc.md](ipc.md), peer discovery
+in [discovery.md](discovery.md), and relay/direct connectivity in
+[connectivity.md](connectivity.md).
 
 ## Transport and discovery
 
-libp2p provides transports, connections, and mDNS discovery. Events are carried
-over a dedicated versioned synchronization protocol using libp2p's
-request/response channel. Requests and responses are opaque byte strings framed
-with CBOR; the gossip layer performs its own JSON encoding inside those bytes.
+libp2p provides transports, connections, and connectivity. Events are carried
+over a session-scoped synchronization protocol using libp2p's request/response
+channel. Requests and responses are opaque byte strings framed with CBOR; the
+gossip layer performs its own JSON encoding inside those bytes.
 
-mDNS discovers peers. On discovery, the network layer registers the peer's
-addresses with the swarm, allowing request/response traffic to dial the peer
-automatically. Peer discovery and expiry are surfaced to the application as
-peer-joined and peer-left notifications.
+The bootstrap service discovers peers. On discovery, the network layer registers
+the peer's addresses with the swarm, allowing request/response traffic to dial
+the peer directly, through a relay, or over a connection upgraded by DCUtR.
+Peer discovery and expiry are surfaced to the application as peer-joined and
+peer-left notifications.
 
 ## Message exchange
 
@@ -87,14 +89,14 @@ no shared ownership or locking.
 - Duplicate events are idempotently ignored.
 - Offline nodes catch up when they reconnect and pull again.
 - Late joiners begin with an empty digest and pull the full history in batches.
-- Outbound pushes and pulls may trigger dials through the registered mDNS
-  addresses.
+- Outbound pushes and pulls may trigger dials through the addresses
+  returned by the bootstrap service, including relayed circuit addresses.
 
 ## Configuration
 
 | Setting | Default | Meaning |
 |---|---|---|
-| Sync interval | 2 seconds | Time between pull rounds |
+| Sync interval | 1 second (demo) | Time between pull rounds |
 | Fanout | 3 | Peers contacted per pull or push |
 | Response limit | 256 | Maximum events returned in one pull response |
 

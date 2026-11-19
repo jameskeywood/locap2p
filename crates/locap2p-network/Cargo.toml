@@ -4,22 +4,31 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+locap2p-config = { workspace = true }
 locap2p-core = { workspace = true }
+locap2p-discovery = { workspace = true }
+locap2p-identity = { workspace = true }
 
+blake3 = { workspace = true }
 futures = { workspace = true }
 libp2p = { workspace = true, features = [
     "cbor",
+    "dcutr",
+    "dns",
+    "identify",
     "macros",
-    "mdns",
     "noise",
     "quic",
+    "relay",
     "request-response",
     "tcp",
     "tokio",
     "yamux",
 ] }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 tracing = { workspace = true }
 
 [dev-dependencies]
+tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }

@@ -1,9 +1,9 @@
 //! Framework host that bridges gossip to an application over stdio.
 
 use anyhow::Result;
-use locap2p_gossip::{AntiEntropyConfig, AntiEntropyGossip, GossipEvent};
+use locap2p_gossip::{AntiEntropyGossip, GossipEvent};
 use locap2p_ipc::{ClientFrame, ServerFrame, read_frame, write_frame};
-use locap2p_network::{Network, NetworkConfig};
+use locap2p_network::Network;
 use tokio::io::{AsyncBufReadExt, BufReader, stdout};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
@@ -17,9 +17,38 @@ use host::Host;
 async fn main() -> Result<()> {
     init_tracing();
 
-    let network = Network::start(NetworkConfig::default())?;
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    let config = match read_frame::<ClientFrame, _>(&mut lines).await {
+        Ok(Some(ClientFrame::Configure { config })) => config,
+        Ok(Some(frame)) => {
+            send_error(format!(
+                "expected a configure frame before any other frame, received {frame:?}"
+            ))
+            .await?;
+            return Ok(());
+        }
+        Ok(None) => return Ok(()),
+        Err(error) => {
+            send_error(format!("invalid IPC frame: {error}")).await?;
+            return Ok(());
+        }
+    };
+
+    let network = match Network::start(&config) {
+        Ok(network) => network,
+        Err(error) => {
+            send_error(format!("failed to start network: {error}")).await?;
+            return Ok(());
+        }
+    };
     let node_id = network.local_node_id();
-    let gossip = AntiEntropyGossip::start(network, AntiEntropyConfig::default())?;
+    let gossip = match AntiEntropyGossip::start(network, config.gossip.clone()) {
+        Ok(gossip) => gossip,
+        Err(error) => {
+            send_error(format!("failed to start gossip: {error}")).await?;
+            return Ok(());
+        }
+    };
     let mut host = Host::new(node_id.clone(), gossip);
 
     let (frames_tx, frames_rx) = mpsc::channel(64);
@@ -30,9 +59,12 @@ async fn main() -> Result<()> {
             node_id: node_id.clone(),
         })
         .await?;
-    info!(node_id = %node_id, "host ready");
-
-    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    info!(
+        node_id = %node_id,
+        application = %config.application.id,
+        session = %config.application.session,
+        "host ready"
+    );
 
     loop {
         tokio::select! {
@@ -63,6 +95,17 @@ async fn main() -> Result<()> {
                                     break;
                                 }
                             }
+                        }
+                    }
+                    Ok(Some(ClientFrame::Configure { .. })) => {
+                        if frames_tx
+                            .send(ServerFrame::Error {
+                                message: "host is already configured".to_owned(),
+                            })
+                            .await
+                            .is_err()
+                        {
+                            break;
                         }
                     }
                     Ok(None) => break,
@@ -114,6 +157,18 @@ async fn main() -> Result<()> {
     drop(frames_tx);
     writer.await??;
 
+    Ok(())
+}
+
+async fn send_error(message: impl Into<String>) -> Result<()> {
+    let mut stdout = stdout();
+    write_frame(
+        &mut stdout,
+        &ServerFrame::Error {
+            message: message.into(),
+        },
+    )
+    .await?;
     Ok(())
 }
 

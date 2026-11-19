@@ -1,0 +1,14 @@
+#cloud-config
+package_update: true
+packages:
+  - ufw
+  - ca-certificates
+  - curl
+
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+  - ufw allow OpenSSH
+  - ufw allow 4001/tcp
+  - ufw allow 4002/tcp
+  - ufw --force enable

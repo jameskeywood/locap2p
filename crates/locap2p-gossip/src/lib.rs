@@ -10,7 +10,7 @@ mod error;
 mod event;
 mod message;
 
-pub use anti_entropy::{AntiEntropyConfig, AntiEntropyGossip};
+pub use anti_entropy::AntiEntropyGossip;
 pub use error::{CodecError, GossipError};
 pub use event::GossipEvent;
 
