@@ -9,3 +9,4 @@ config
 deploy
 *.key
 *.pem
+state

@@ -112,7 +112,7 @@ mod tests {
         let config: FrameworkConfig = serde_json::from_value(json!({
             "schema_version": 1,
             "application": { "id": "locap2p-test/1", "session": "demo" },
-            "identity": { "path": "target/demo/node.key" },
+            "identity": { "path": "state/demo/node.key" },
             "network": {
                 "listen_addrs": ["/ip4/127.0.0.1/tcp/0"],
                 "request_timeout_ms": 1000

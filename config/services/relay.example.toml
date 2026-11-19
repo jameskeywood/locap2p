@@ -1,15 +1,11 @@
-# Local relay service example.
-# Copy to relay.local.toml and adjust paths/addresses.
+listen_addrs = ["/ip4/0.0.0.0/tcp/4002"]
 
-listen_addrs = ["/ip4/127.0.0.1/tcp/4001"]
+# LAN example
+# advertise_addrs = ["/ip4/192.168.0.75/tcp/4002"]
+# WAN example
+# advertise_addrs = ["/ip4/203.0.113.10/tcp/4002"]
 
-# For a public deployment, advertise a reachable address and listen on all
-# interfaces:
-#
-# listen_addrs = ["/ip4/0.0.0.0/tcp/4001"]
-# advertise_addrs = ["/ip4/203.0.113.10/tcp/4001"]
-
-identity_path = "target/relay/relay.key"
+identity_path = "state/relay/relay.key"
 
 [limits]
 max_reservations = 512
