@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import com.locap2p.demo.model.Position;
-import com.locap2p.demo.model.PositionEvent;
+import com.locap2p.demo.model.player.Position;
+import com.locap2p.demo.model.player.PositionEvent;
 
 public final class ApplicationState {
     private static final long INITIAL_SEQ = 0;

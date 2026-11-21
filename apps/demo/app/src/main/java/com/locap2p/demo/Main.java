@@ -8,12 +8,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 
-import com.locap2p.demo.config.FrameworkConfig;
 import com.locap2p.demo.ipc.FrameworkClient;
 import com.locap2p.demo.ipc.Protocol;
-import com.locap2p.demo.model.Direction;
-import com.locap2p.demo.model.Position;
-import com.locap2p.demo.model.PositionEvent;
+import com.locap2p.demo.model.config.FrameworkConfig;
+import com.locap2p.demo.model.ipc.FrameworkEvent;
+import com.locap2p.demo.model.ipc.FrameworkMessage;
+import com.locap2p.demo.model.player.Direction;
+import com.locap2p.demo.model.player.Position;
+import com.locap2p.demo.model.player.PositionEvent;
 
 public final class Main {
     private Main() {
@@ -96,8 +98,10 @@ public final class Main {
     private record Arguments(Path hostBinary, Path config) {
     }
 
-    private static void readCommands(FrameworkClient client, ApplicationState state)
-            throws IOException {
+    private static void readCommands(
+        FrameworkClient client,
+        ApplicationState state) throws IOException {
+
         BufferedReader input = new BufferedReader(
                 new InputStreamReader(System.in, StandardCharsets.UTF_8));
 
@@ -122,32 +126,31 @@ public final class Main {
         }
     }
 
-    private static void move(FrameworkClient client, ApplicationState state, Direction direction)
-            throws IOException {
+    private static void move(
+        FrameworkClient client,
+        ApplicationState state,
+        Direction direction) throws IOException {
+
         Position next = state.local().position().movedBy(direction);
         client.publish(next);
     }
 
-    private static void handleServerMessage(
-            ApplicationState state,
-            Protocol.ServerMessage message) {
+    private static void handleServerMessage(ApplicationState state, FrameworkMessage message) {
         switch (message) {
-            case Protocol.ServerMessage.EventMessage event ->
+            case FrameworkMessage.EventMessage event ->
                     handleEvent(state, event.event());
-            case Protocol.ServerMessage.PeerJoined joined ->
+            case FrameworkMessage.PeerJoined joined ->
                     System.out.printf("peer joined: %s%n", joined.nodeId());
-            case Protocol.ServerMessage.PeerLeft left ->
+            case FrameworkMessage.PeerLeft left ->
                     System.out.printf("peer left: %s%n", left.nodeId());
-            case Protocol.ServerMessage.Error error ->
+            case FrameworkMessage.Error error ->
                     System.err.printf("framework error: %s%n", error.message());
-            case Protocol.ServerMessage.Ready ignored -> {
+            case FrameworkMessage.Ready ignored -> {
             }
         }
     }
 
-    private static void handleEvent(
-            ApplicationState state,
-            Protocol.FrameworkEvent frameworkEvent) {
+    private static void handleEvent(ApplicationState state, FrameworkEvent frameworkEvent) {
         try {
             PositionEvent event = Protocol.parsePositionEvent(frameworkEvent);
             if (!state.apply(event)) {

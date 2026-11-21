@@ -142,5 +142,6 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 
 ### IPC
 - Overview: https://en.wikipedia.org/wiki/Inter-process_communication
+- STDIN/STDOUT/STDERR: https://stackoverflow.com/questions/3385201/confused-about-stdin-stdout-and-stderr
 - NDJSON: https://en.wikipedia.org/wiki/JSON_streaming
 - Unix Domain Sockets: https://kernel-internals.org/ipc/unix-sockets/

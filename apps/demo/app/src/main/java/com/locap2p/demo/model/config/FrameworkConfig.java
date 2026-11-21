@@ -1,4 +1,4 @@
-package com.locap2p.demo.config;
+package com.locap2p.demo.model.config;
 
 import java.io.IOException;
 import java.nio.file.Path;

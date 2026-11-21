@@ -1,4 +1,4 @@
-package com.locap2p.demo.model;
+package com.locap2p.demo.model.player;
 
 public enum Direction {
     UP,
