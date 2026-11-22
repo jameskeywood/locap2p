@@ -3,8 +3,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use locap2p_core::NodeId;
 use serde::{Deserialize, Serialize};
+
+use crate::NodeId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -14,7 +15,7 @@ pub(crate) enum MemberState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct PeerRecord {
+pub struct PeerRecord {
     pub(crate) peer_id: NodeId,
     pub(crate) addresses: Vec<String>,
     pub(crate) version: u64,
@@ -23,7 +24,7 @@ pub(crate) struct PeerRecord {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum MembershipChange {
+pub enum MembershipChange {
     Joined {
         peer_id: NodeId,
         addresses: Vec<String>,
@@ -37,7 +38,7 @@ pub(crate) enum MembershipChange {
     },
 }
 
-pub(crate) struct MembershipView {
+pub struct MembershipView {
     local_peer_id: NodeId,
     local_record: PeerRecord,
     records: HashMap<NodeId, PeerRecord>,
@@ -47,7 +48,7 @@ pub(crate) struct MembershipView {
 }
 
 impl MembershipView {
-    pub(crate) fn new(
+    pub fn new(
         local_peer_id: NodeId,
         addresses: Vec<String>,
         now_ms: u64,
@@ -72,28 +73,28 @@ impl MembershipView {
         }
     }
 
-    pub(crate) fn refresh_local(&mut self, addresses: Vec<String>, now_ms: u64) {
+    pub fn refresh_local(&mut self, addresses: Vec<String>, now_ms: u64) {
         self.local_record.addresses = addresses;
         self.local_record.version = now_ms.max(self.local_record.version.saturating_add(1));
         self.local_record.expires_at_ms = now_ms.saturating_add(self.ttl_ms);
     }
 
-    pub(crate) fn records(&self) -> Vec<PeerRecord> {
+    pub fn records(&self) -> Vec<PeerRecord> {
         let mut records = Vec::with_capacity(self.records.len() + 1);
         records.push(self.local_record.clone());
         records.extend(self.records.values().cloned());
         records
     }
 
-    pub(crate) fn active_peers(&self) -> BTreeSet<NodeId> {
+    pub fn active_peers(&self) -> BTreeSet<NodeId> {
         self.active.clone()
     }
 
-    pub(crate) fn is_active(&self, peer_id: &NodeId) -> bool {
+    pub fn is_active(&self, peer_id: &NodeId) -> bool {
         self.active.contains(peer_id)
     }
 
-    pub(crate) fn merge(&mut self, records: Vec<PeerRecord>, now_ms: u64) -> Vec<MembershipChange> {
+    pub fn merge(&mut self, records: Vec<PeerRecord>, now_ms: u64) -> Vec<MembershipChange> {
         let mut changes = Vec::new();
 
         for record in records {
@@ -152,7 +153,7 @@ impl MembershipView {
         changes
     }
 
-    pub(crate) fn expire(&mut self, now_ms: u64) -> Vec<MembershipChange> {
+    pub fn expire(&mut self, now_ms: u64) -> Vec<MembershipChange> {
         let expired: Vec<NodeId> = self
             .active
             .iter()
@@ -176,7 +177,7 @@ impl MembershipView {
     }
 }
 
-pub(crate) fn now_ms() -> u64 {
+pub fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |duration| duration.as_millis() as u64)

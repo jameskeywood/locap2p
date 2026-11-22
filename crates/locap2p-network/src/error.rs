@@ -13,8 +13,6 @@ pub enum NetworkError {
     Listen(String),
     #[error("invalid peer id: {0}")]
     InvalidPeer(String),
-    #[error("failed to send request: {0}")]
-    Request(String),
     #[error("failed to send response: {0}")]
     Respond(String),
 }

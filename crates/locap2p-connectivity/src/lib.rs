@@ -35,10 +35,6 @@ impl Connectivity {
         self.relay.reservation_addrs()
     }
 
-    pub fn service_peers(&self) -> impl Iterator<Item = PeerId> + '_ {
-        self.relay.service_peers()
-    }
-
     pub fn on_listen_addr(&mut self, address: Multiaddr) {
         self.addresses.add_listen(address);
     }

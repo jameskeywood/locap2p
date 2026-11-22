@@ -1,16 +1,15 @@
 use std::collections::{BTreeSet, HashSet, VecDeque};
 
 use locap2p_config::GossipConfig;
-use locap2p_core::{Event, EventId, EventSet, NodeId};
+use locap2p_core::{
+    Event, EventId, EventSet, NodeId,
+    membership::{MembershipChange, MembershipView, PeerRecord, now_ms},
+};
 use locap2p_network::{Network, NetworkEvent, RequestId};
 use tokio::time::{Interval, MissedTickBehavior, interval};
 use tracing::{debug, warn};
 
-use crate::{
-    Gossip, GossipError, GossipEvent, codec,
-    membership::{MembershipChange, MembershipView, PeerRecord, now_ms},
-    message::SyncMessage,
-};
+use crate::{Gossip, GossipError, GossipEvent, codec, message::SyncMessage};
 
 #[derive(Default)]
 struct PeerSelector {
@@ -264,7 +263,7 @@ impl AntiEntropyGossip {
     }
 
     fn integrate(&mut self, event: Event) -> bool {
-        if self.store.insert(event.clone()) {
+        if let Some(event) = self.store.merge(vec![event]).into_iter().next() {
             self.pending.push_back(GossipEvent::Event(event));
             true
         } else {
@@ -273,15 +272,11 @@ impl AntiEntropyGossip {
     }
 
     fn merge_events(&mut self, events: Vec<Event>) -> usize {
-        let mut inserted = 0;
-
-        for event in events {
-            if self.integrate(event) {
-                inserted += 1;
-            }
-        }
-
-        inserted
+        let inserted = self.store.merge(events);
+        let count = inserted.len();
+        self.pending
+            .extend(inserted.into_iter().map(GossipEvent::Event));
+        count
     }
 }
 
@@ -377,6 +372,19 @@ mod tests {
         gossip.publish(event).await.unwrap();
 
         assert_eq!(gossip.pending.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn merge_events_emits_only_new_events() {
+        let mut gossip = gossip();
+        let first = event(1);
+        let second = event(2);
+
+        assert_eq!(gossip.merge_events(vec![first.clone(), second.clone()]), 2);
+        assert_eq!(gossip.pending.len(), 2);
+
+        assert_eq!(gossip.merge_events(vec![first, second]), 0);
+        assert_eq!(gossip.pending.len(), 2);
     }
 
     #[test]

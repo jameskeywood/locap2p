@@ -37,10 +37,6 @@ impl RelayClient {
             .collect()
     }
 
-    pub(crate) fn service_peers(&self) -> impl Iterator<Item = PeerId> + '_ {
-        self.endpoints.iter().map(|endpoint| endpoint.peer_id)
-    }
-
     pub(crate) fn on_event(&self, event: relay::client::Event) {
         match event {
             relay::client::Event::ReservationReqAccepted {
@@ -102,19 +98,5 @@ mod tests {
         );
 
         assert!(client.reservation_addrs().is_empty());
-    }
-
-    #[test]
-    fn exposes_service_peers() {
-        let peer_id = peer_id();
-        let client = RelayClient::new(
-            vec![RelayEndpoint {
-                peer_id,
-                address: "/ip4/127.0.0.1/tcp/4001".parse().unwrap(),
-            }],
-            true,
-        );
-
-        assert_eq!(client.service_peers().collect::<Vec<_>>(), vec![peer_id]);
     }
 }

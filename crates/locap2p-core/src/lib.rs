@@ -3,6 +3,7 @@
 mod event;
 mod event_set;
 mod id;
+pub mod membership;
 
 pub use event::{Event, EventError};
 pub use event_set::EventSet;

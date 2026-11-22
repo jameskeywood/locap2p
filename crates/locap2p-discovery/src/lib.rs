@@ -16,7 +16,7 @@ use locap2p_config::ApplicationConfig;
 use tracing::{debug, warn};
 
 pub use behaviour::{Behaviour, BehaviourEvent};
-pub use protocol::{SEED_PROTOCOL, SeedPeer, SeedRequest, SeedResponse};
+pub use protocol::{SeedPeer, SeedRequest, SeedResponse};
 
 const SEED_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
 

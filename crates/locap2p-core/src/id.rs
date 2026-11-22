@@ -7,10 +7,6 @@ use serde::{Deserialize, Serialize};
 pub struct NodeId(String);
 
 impl NodeId {
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
-    }
-
     pub fn as_str(&self) -> &str {
         &self.0
     }

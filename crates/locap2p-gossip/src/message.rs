@@ -1,7 +1,5 @@
-use locap2p_core::{Event, EventId};
+use locap2p_core::{Event, EventId, membership::PeerRecord};
 use serde::{Deserialize, Serialize};
-
-use crate::membership::PeerRecord;
 
 /// Messages exchanged by the anti-entropy protocol.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

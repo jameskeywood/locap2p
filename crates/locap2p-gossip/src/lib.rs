@@ -8,7 +8,6 @@ mod anti_entropy;
 mod codec;
 mod error;
 mod event;
-mod membership;
 mod message;
 
 pub use anti_entropy::AntiEntropyGossip;

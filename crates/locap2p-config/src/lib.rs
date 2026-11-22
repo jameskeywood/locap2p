@@ -4,14 +4,9 @@
 //! define it once and pass it to the framework without the framework needing
 //! to read application-specific files itself.
 
-use std::{
-    fmt,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{fmt, path::PathBuf, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 /// Version of the application configuration contract.
 pub const CONFIG_SCHEMA_VERSION: u32 = 1;
@@ -29,19 +24,6 @@ pub struct FrameworkConfig {
     pub connectivity: ConnectivityConfig,
     #[serde(default)]
     pub gossip: GossipConfig,
-}
-
-impl FrameworkConfig {
-    /// Loads a JSON configuration file.
-    pub fn load(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
-        let file = std::fs::File::open(path.as_ref()).map_err(ConfigError::Io)?;
-        serde_json::from_reader(file).map_err(ConfigError::Json)
-    }
-
-    /// Serializes the configuration as pretty-printed JSON.
-    pub fn to_json_pretty(&self) -> Result<String, ConfigError> {
-        serde_json::to_string_pretty(self).map_err(ConfigError::Json)
-    }
 }
 
 /// Application identity and the logical session being joined.
@@ -205,15 +187,6 @@ impl fmt::Display for ServiceEndpoint {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&self.0)
     }
-}
-
-/// Errors returned while loading configuration.
-#[derive(Debug, Error)]
-pub enum ConfigError {
-    #[error("failed to read configuration: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("failed to parse configuration: {0}")]
-    Json(#[from] serde_json::Error),
 }
 
 fn default_true() -> bool {
