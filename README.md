@@ -140,6 +140,7 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 	- Hole Punching: https://libp2p.io/docs/hole-punching/
 	- DCUtR: https://libp2p.io/docs/dcutr/
 - Rust libp2p: https://github.com/libp2p/rust-libp2p
+- Listen vs. Advertised addresses: https://www.linkedin.com/pulse/listen-addresses-advertised-exploring-benefits-use-cases-amr-amin/
 
 ### IPC
 - Overview: https://en.wikipedia.org/wiki/Inter-process_communication
