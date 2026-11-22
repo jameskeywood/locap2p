@@ -1,0 +1,10 @@
+[package]
+name = "locap2p-connectivity"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+locap2p-config = { workspace = true }
+
+libp2p = { workspace = true, features = ["dcutr", "macros", "relay"] }
+tracing = { workspace = true }

@@ -201,10 +201,10 @@ fn build_swarm(
         .with_dns()?
         .with_behaviour(|key| Behaviour {
             relay: relay::Behaviour::new(local_peer_id, relay_config),
-            identify: identify::Behaviour::new(identify::Config::new(
-                "/locap2p/identify/1".to_owned(),
-                key.public(),
-            )),
+            identify: identify::Behaviour::new(
+                identify::Config::new("/locap2p/identify/1".to_owned(), key.public())
+                    .with_hide_listen_addrs(true),
+            ),
             ping: ping::Behaviour::new(ping::Config::new()),
         })?
         .build();

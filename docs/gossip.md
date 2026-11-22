@@ -8,31 +8,54 @@ mechanisms:
 - **Eager push** for low publish latency.
 - **Periodic pull** for convergence after loss, disconnection, or late joins.
 
-The application-facing side is described in [ipc.md](ipc.md), peer discovery
-in [discovery.md](discovery.md), and relay/direct connectivity in
+Gossip also owns session membership. Bootstrap only provides initial seed
+candidates; members are established, refreshed and expired through gossip.
+
+The application-facing side is described in [ipc.md](ipc.md), seed discovery in
+[discovery.md](discovery.md), and relay/direct connectivity in
 [connectivity.md](connectivity.md).
 
-## Transport and discovery
+## Transport and membership
 
-libp2p provides transports, connections, and connectivity. Events are carried
-over a session-scoped synchronization protocol using libp2p's request/response
-channel. Requests and responses are opaque byte strings framed with CBOR; the
-gossip layer performs its own JSON encoding inside those bytes.
+libp2p provides transports, connections, and connectivity. Events and membership
+records are carried over a session-scoped synchronization protocol using
+libp2p's request/response channel. Requests and responses are opaque byte strings
+framed with CBOR; the gossip layer performs its own JSON encoding inside those
+bytes.
 
-The bootstrap service discovers peers. On discovery, the network layer registers
-the peer's addresses with the swarm, allowing request/response traffic to dial
-the peer directly, through a relay, or over a connection upgraded by DCUtR.
-Peer discovery and expiry are surfaced to the application as peer-joined and
-peer-left notifications.
+Each node has a versioned membership record:
+
+```text
+PeerRecord {
+    peer_id,
+    addresses,
+    version,
+    expires_at_ms,
+    state: active | left,
+}
+```
+
+Records are merged by version. A higher version replaces a lower version. An
+`active` record adds the peer to the member set; a `left` record removes it and
+acts as a tombstone.
+
+Membership records are included in every pull, pull response and push. This
+full-state exchange keeps the implementation simple for small sessions. Peers
+renew their own records periodically, extending `expires_at_ms`. A crashed peer
+disappears when its last record expires, with a local grace period.
+
+Bootstrap seed candidates are used for the initial membership exchange only.
+They are not reported as members until an active membership record is observed.
 
 ## Message exchange
 
-The synchronization protocol has two request types and two response types:
-
 | Exchange | Request | Response |
 |---|---|---|
-| Pull | The sender's digest of known event identifiers | Events the requester lacks |
-| Push | One or more newly published events | An acknowledgement |
+| Pull | Event digest and membership records | Missing events and membership records |
+| Push | New events and membership records | An acknowledgement |
+
+Membership is merged before application events are accepted. Application events
+are served only to active members.
 
 Every event received in a push or pull response is validated before it is
 integrated.
@@ -41,12 +64,15 @@ integrated.
 
 Every sync interval, a node:
 
-1. Selects up to the configured fanout of peers, rotating through the peer set
-   so that all peers are eventually contacted.
-2. Sends each selected peer its digest.
-3. Receives the events it lacks in the responses.
-4. Verifies and integrates those events.
-5. Notifies the application only about events that were newly integrated.
+1. Refreshes its local membership record with its current reachable addresses.
+2. Selects up to the configured fanout of peers, rotating through active
+   members and any seed candidates.
+3. Sends each selected peer its event digest and membership records.
+4. Receives missing events and membership records in the responses.
+5. Merges membership changes.
+6. Verifies and integrates events from active members.
+7. Notifies the application only about newly integrated events and membership
+   transitions.
 
 The responder compares the requester's digest with its own event set and returns
 up to the configured maximum number of missing events. Responses are capped to
@@ -59,7 +85,7 @@ When an event is published locally:
 
 1. The gossip layer integrates it into its local event set.
 2. If the event is new, gossip notifies the application and sends it to up to
-   the configured fanout of peers.
+   the configured fanout of active members.
 3. Each receiver validates and integrates the event, then acknowledges it.
 
 Push is best-effort and is not forwarded on receipt, so only the first hop is
@@ -89,8 +115,8 @@ no shared ownership or locking.
 - Duplicate events are idempotently ignored.
 - Offline nodes catch up when they reconnect and pull again.
 - Late joiners begin with an empty digest and pull the full history in batches.
-- Outbound pushes and pulls may trigger dials through the addresses
-  returned by the bootstrap service, including relayed circuit addresses.
+- Membership records expire locally after the configured TTL plus grace period.
+- Seed candidates that fail are removed from the candidate set.
 
 ## Configuration
 
@@ -99,7 +125,9 @@ no shared ownership or locking.
 | Sync interval | 1 second (demo) | Time between pull rounds |
 | Fanout | 3 | Peers contacted per pull or push |
 | Response limit | 256 | Maximum events returned in one pull response |
+| Membership TTL | 10 seconds | Lifetime of a membership record |
+| Expiry grace | 5 seconds | Local tolerance before reporting a member left |
 
 Fanout is applied independently to each pull round and each eager push. Peer
-selection rotates through the peer set so that repeated rounds cover different
+selection rotates through the member set so that repeated rounds cover different
 peers.

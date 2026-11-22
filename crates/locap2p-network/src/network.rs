@@ -1,18 +1,25 @@
-use std::{str::FromStr, time::Duration};
+use std::{
+    collections::BTreeSet,
+    str::FromStr,
+    time::{Duration, Instant},
+};
 
 use futures::StreamExt;
-use libp2p::{Multiaddr, PeerId, Swarm, multiaddr::Protocol, swarm::SwarmEvent};
+use libp2p::{Multiaddr, PeerId, Swarm, identify, swarm::SwarmEvent};
 use locap2p_config::FrameworkConfig;
+use locap2p_connectivity::{Connectivity, RelayEndpoint};
 use locap2p_core::NodeId;
+use locap2p_discovery::{SeedClient, SeedPeer};
 use locap2p_identity::load_or_generate;
 use tokio::time::{Instant as TokioInstant, sleep_until};
+use tracing::{debug, info, warn};
 
 use crate::{
-    behaviour::Behaviour,
+    behaviour::{Behaviour, BehaviourEvent},
     endpoint::parse_endpoints,
     error::NetworkError,
     event::{NetworkEvent, RequestId},
-    event_handler::{SessionSettings, SwarmEventHandler},
+    event_handler::SwarmEventHandler,
     swarm,
 };
 
@@ -21,8 +28,8 @@ pub struct Network {
     swarm: Swarm<Behaviour>,
     node_id: NodeId,
     handler: SwarmEventHandler,
-    announce_interval: Option<Duration>,
-    next_announce: Option<TokioInstant>,
+    connectivity: Connectivity,
+    seed_client: SeedClient,
 }
 
 impl Network {
@@ -60,52 +67,69 @@ impl Network {
             swarm.add_peer_address(endpoint.peer_id, endpoint.address.clone());
         }
 
-        if config.connectivity.reserve_relay && !relay.is_empty() {
-            for endpoint in &relay {
-                let address = endpoint
-                    .address
-                    .clone()
-                    .with(Protocol::P2p(endpoint.peer_id))
-                    .with(Protocol::P2pCircuit);
-                swarm
-                    .listen_on(address)
-                    .map_err(|error| NetworkError::Listen(error.to_string()))?;
-            }
-        }
-
         let local_peer_id = *swarm.local_peer_id();
         let node_id = NodeId::from(local_peer_id.to_string());
-        let handler = SwarmEventHandler::new(
-            local_peer_id,
-            bootstrap,
-            &relay,
-            SessionSettings {
-                application: config.application.id.clone(),
-                session: config.application.session.clone(),
-                membership_ttl: config.discovery.membership_ttl(),
-                expiry_grace: config.discovery.expiry_grace(),
-                prefer_direct: config.connectivity.prefer_direct,
-            },
-        );
+        let relay_endpoints = relay
+            .iter()
+            .map(|endpoint| RelayEndpoint {
+                peer_id: endpoint.peer_id,
+                address: endpoint.address.clone(),
+            })
+            .collect();
+        let connectivity = Connectivity::new(local_peer_id, &config.connectivity, relay_endpoints);
 
-        let announce_interval = handler.has_bootstrap().then(|| {
-            let interval = config.discovery.membership_ttl() / 3;
-            interval.max(Duration::from_secs(1))
-        });
-        let next_announce = announce_interval.map(|_| TokioInstant::now());
+        for address in connectivity.reservation_addrs() {
+            swarm
+                .listen_on(address)
+                .map_err(|error| NetworkError::Listen(error.to_string()))?;
+        }
+
+        let seed_client = SeedClient::new(
+            &config.application,
+            bootstrap.iter().map(|endpoint| endpoint.peer_id),
+        );
 
         Ok(Self {
             swarm,
             node_id,
-            handler,
-            announce_interval,
-            next_announce,
+            handler: SwarmEventHandler::default(),
+            connectivity,
+            seed_client,
         })
     }
 
     /// Returns this node's peer identity.
     pub fn local_node_id(&self) -> NodeId {
         self.node_id.clone()
+    }
+
+    /// Returns the addresses announced to other peers.
+    pub fn local_addresses(&self) -> Vec<String> {
+        self.connectivity
+            .announceable_addresses()
+            .into_iter()
+            .map(|address| address.to_string())
+            .collect()
+    }
+
+    /// Registers addresses learned through gossip membership.
+    pub fn register_peer_addresses(
+        &mut self,
+        peer: &NodeId,
+        addresses: &[String],
+    ) -> Result<(), NetworkError> {
+        let peer_id = PeerId::from_str(peer.as_str())
+            .map_err(|error| NetworkError::InvalidPeer(error.to_string()))?;
+        let addresses: Vec<Multiaddr> = addresses
+            .iter()
+            .filter_map(|address| Multiaddr::from_str(address).ok())
+            .collect();
+
+        for address in self.connectivity.rank_peer_addresses(addresses) {
+            self.swarm.add_peer_address(peer_id, address);
+        }
+
+        Ok(())
     }
 
     /// Sends a request to a peer, dialing it if necessary.
@@ -140,19 +164,26 @@ impl Network {
                 return Some(event);
             }
 
-            match (self.next_announce, self.announce_interval) {
-                (Some(next_announce), Some(announce_interval)) => {
+            let addresses = self.connectivity.announceable_addresses();
+            let lookups = self.seed_client.poll(Instant::now(), &addresses);
+            if !lookups.is_empty() {
+                for lookup in lookups {
+                    self.swarm
+                        .behaviour_mut()
+                        .seeds
+                        .request_seeds(lookup.bootstrap_peer, lookup.request);
+                }
+                continue;
+            }
+
+            match self.seed_client.next_deadline() {
+                Some(deadline) => {
                     tokio::select! {
-                        _ = sleep_until(next_announce) => {
-                            self.handler.announce(&mut self.swarm);
-                            self.next_announce = Some(TokioInstant::now() + announce_interval);
-                        }
-                        event = self.swarm.select_next_some() => {
-                            self.handle_swarm_event(event);
-                        }
+                        _ = sleep_until(TokioInstant::from_std(deadline)) => {}
+                        event = self.swarm.select_next_some() => self.handle_swarm_event(event),
                     }
                 }
-                _ => {
+                None => {
                     let event = self.swarm.select_next_some().await;
                     self.handle_swarm_event(event);
                 }
@@ -160,9 +191,84 @@ impl Network {
         }
     }
 
-    fn handle_swarm_event(&mut self, event: SwarmEvent<crate::behaviour::BehaviourEvent>) {
-        self.handler.handle(&mut self.swarm, event);
+    fn handle_swarm_event(&mut self, event: SwarmEvent<BehaviourEvent>) {
+        match event {
+            SwarmEvent::Behaviour(BehaviourEvent::Seeds(event)) => {
+                let seeds = self.seed_client.on_behaviour_event(event);
+                self.apply_seed_peers(seeds);
+            }
+            SwarmEvent::Behaviour(BehaviourEvent::Connectivity(event)) => {
+                self.connectivity.on_behaviour_event(event);
+            }
+            SwarmEvent::NewListenAddr { address, .. } => {
+                info!(%address, "listening");
+                self.connectivity.on_listen_addr(address);
+            }
+            SwarmEvent::ExpiredListenAddr { address, .. } => {
+                self.connectivity.on_expired_listen_addr(&address);
+            }
+            SwarmEvent::ExternalAddrConfirmed { address } => {
+                self.connectivity.on_external_addr(address);
+            }
+            SwarmEvent::ExternalAddrExpired { address } => {
+                self.connectivity.on_expired_external_addr(&address);
+            }
+            SwarmEvent::Behaviour(BehaviourEvent::Identify(identify::Event::Received {
+                peer_id,
+                info,
+                ..
+            })) => {
+                debug!(
+                    %peer_id,
+                    observed = %info.observed_addr,
+                    protocols = info.protocols.len(),
+                    "identify information received"
+                );
+                self.connectivity.on_observed_addr(info.observed_addr);
+            }
+            event => self.handler.handle(event),
+        }
     }
+
+    fn apply_seed_peers(&mut self, seeds: Vec<SeedPeer>) {
+        let mut peers = BTreeSet::new();
+
+        for seed in seeds {
+            let Ok(peer_id) = PeerId::from_str(&seed.peer_id) else {
+                warn!(peer_id = %seed.peer_id, "bootstrap returned an invalid seed peer id");
+                continue;
+            };
+
+            if peer_id == *self.swarm.local_peer_id() {
+                continue;
+            }
+
+            let addresses: Vec<Multiaddr> = seed
+                .addresses
+                .iter()
+                .filter_map(|address| Multiaddr::from_str(address).ok())
+                .collect();
+            let addresses = self.connectivity.rank_peer_addresses(addresses);
+
+            if addresses.is_empty() {
+                continue;
+            }
+
+            for address in addresses {
+                self.swarm.add_peer_address(peer_id, address);
+            }
+            peers.insert(node_id(peer_id));
+        }
+
+        if !peers.is_empty() {
+            self.handler
+                .push_event(NetworkEvent::SeedPeers(peers.into_iter().collect()));
+        }
+    }
+}
+
+fn node_id(peer_id: PeerId) -> NodeId {
+    NodeId::from(peer_id.to_string())
 }
 
 #[cfg(test)]
@@ -190,8 +296,6 @@ mod tests {
             },
             discovery: DiscoveryConfig {
                 bootstrap: Vec::new(),
-                membership_ttl_ms: 10_000,
-                expiry_grace_ms: 0,
             },
             connectivity: ConnectivityConfig::default(),
             gossip: GossipConfig::default(),

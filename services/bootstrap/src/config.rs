@@ -1,8 +1,12 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use serde::Deserialize;
 
-/// Static configuration for a bootstrap service.
+/// Static configuration for a bootstrap seed service.
 #[derive(Debug, Clone, Deserialize)]
 pub struct BootstrapConfig {
     /// Addresses the service listens on.
@@ -12,17 +16,27 @@ pub struct BootstrapConfig {
     pub advertise_addrs: Vec<String>,
     /// Persistent identity key used to derive the advertised peer ID.
     pub identity_path: PathBuf,
-    /// Maximum number of session members returned/stored per session.
-    #[serde(default = "default_max_peers_per_session")]
-    pub max_peers_per_session: usize,
+    /// How long a seed remains available for introduction.
+    #[serde(default = "default_seed_ttl_secs")]
+    pub seed_ttl_secs: u64,
+    /// Maximum seeds retained per session.
+    #[serde(default = "default_max_seeds_per_session")]
+    pub max_seeds_per_session: usize,
+    /// Maximum seeds returned in one response.
+    #[serde(default = "default_max_seeds_returned")]
+    pub max_seeds_returned: usize,
 }
 
 impl BootstrapConfig {
-    pub fn load(path: impl AsRef<std::path::Path>) -> anyhow::Result<Self> {
+    pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let contents = fs::read_to_string(path)?;
         let config: Self = toml::from_str(&contents)?;
         config.validate()?;
         Ok(config)
+    }
+
+    pub fn seed_ttl(&self) -> Duration {
+        Duration::from_secs(self.seed_ttl_secs)
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
@@ -38,14 +52,18 @@ impl BootstrapConfig {
             anyhow::bail!("advertised addresses must be multiaddrs");
         }
 
-        if self.max_peers_per_session == 0 {
-            anyhow::bail!("max_peers_per_session must be non-zero");
-        }
-
         Ok(())
     }
 }
 
-fn default_max_peers_per_session() -> usize {
-    256
+fn default_seed_ttl_secs() -> u64 {
+    90
+}
+
+fn default_max_seeds_per_session() -> usize {
+    32
+}
+
+fn default_max_seeds_returned() -> usize {
+    8
 }

@@ -1,36 +1,38 @@
-//! Bootstrap/rendezvous service for locap2p sessions.
+//! Bootstrap seed gateway for locap2p sessions.
 
 mod config;
-mod registry;
+mod seed_pool;
 
-use std::{str::FromStr, time::Duration};
+use std::{str::FromStr, time::Instant};
 
 use anyhow::Context;
 use futures::StreamExt;
 use libp2p::identity::Keypair;
 use libp2p::multiaddr::Protocol;
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
-use libp2p::{
-    Multiaddr, PeerId, StreamProtocol, Swarm, identify, noise, request_response, tcp, yamux,
-};
-use locap2p_discovery::{BOOTSTRAP_PROTOCOL, BootstrapRequest, BootstrapResponse};
+use libp2p::{Multiaddr, PeerId, Swarm, identify, noise, request_response, tcp, yamux};
+use locap2p_discovery::{SeedRequest, SeedResponse};
 use tracing::{debug, info, warn};
 
 pub use config::BootstrapConfig;
-use registry::Registry;
-
-const MAX_ADDRESSES_PER_PEER: usize = 16;
+use seed_pool::SeedPool;
 
 #[derive(NetworkBehaviour)]
 struct Behaviour {
-    bootstrap: request_response::cbor::Behaviour<BootstrapRequest, BootstrapResponse>,
+    seeds: locap2p_discovery::Behaviour,
     identify: identify::Behaviour,
 }
 
-/// Runs the bootstrap service until the process is terminated.
+/// Runs the bootstrap seed service until the process is terminated.
 pub async fn run(config: BootstrapConfig) -> anyhow::Result<()> {
     let (identity, peer_id, endpoints) = prepare(&config)?;
     let mut swarm = build_swarm(identity)?;
+
+    for address in &config.advertise_addrs {
+        let address = Multiaddr::from_str(address)
+            .with_context(|| format!("invalid advertised address: {address}"))?;
+        swarm.add_external_address(address);
+    }
 
     for address in &config.listen_addrs {
         let address = Multiaddr::from_str(address)
@@ -42,43 +44,45 @@ pub async fn run(config: BootstrapConfig) -> anyhow::Result<()> {
 
     print_info_block(peer_id, &endpoints);
 
-    let mut registry = Registry::new(config.max_peers_per_session);
+    let mut seed_pool = SeedPool::new(
+        config.seed_ttl(),
+        config.max_seeds_per_session,
+        config.max_seeds_returned,
+    );
 
     while let Some(event) = swarm.next().await {
         match event {
-            SwarmEvent::Behaviour(BehaviourEvent::Bootstrap(
-                request_response::Event::Message { peer, message, .. },
-            )) => match message {
+            SwarmEvent::Behaviour(BehaviourEvent::Seeds(request_response::Event::Message {
+                peer,
+                message,
+                ..
+            })) => match message {
                 request_response::Message::Request {
                     request, channel, ..
                 } => {
-                    let response = handle_request(&mut registry, peer, request);
-                    if let Err(rejected) = swarm
-                        .behaviour_mut()
-                        .bootstrap
-                        .send_response(channel, response)
-                    {
-                        warn!(%peer, ?rejected, "failed to send bootstrap response");
+                    let response = handle_request(&mut seed_pool, peer, request);
+                    if let Err(rejected) = swarm.behaviour_mut().seeds.respond(channel, response) {
+                        warn!(%peer, ?rejected, "failed to send seed response");
                     }
                 }
                 request_response::Message::Response { .. } => {
-                    debug!(%peer, "ignoring unexpected bootstrap response");
+                    debug!(%peer, "ignoring unexpected seed response");
                 }
             },
-            SwarmEvent::Behaviour(BehaviourEvent::Bootstrap(
+            SwarmEvent::Behaviour(BehaviourEvent::Seeds(
                 request_response::Event::OutboundFailure { peer, error, .. },
             )) => {
                 warn!(%peer, %error, "bootstrap outbound request failed");
             }
-            SwarmEvent::Behaviour(BehaviourEvent::Bootstrap(
+            SwarmEvent::Behaviour(BehaviourEvent::Seeds(
                 request_response::Event::InboundFailure { peer, error, .. },
             )) => {
                 warn!(%peer, %error, "bootstrap inbound request failed");
             }
-            SwarmEvent::Behaviour(BehaviourEvent::Bootstrap(
+            SwarmEvent::Behaviour(BehaviourEvent::Seeds(
                 request_response::Event::ResponseSent { peer, .. },
             )) => {
-                debug!(%peer, "bootstrap response sent");
+                debug!(%peer, "seed response sent");
             }
             SwarmEvent::Behaviour(BehaviourEvent::Identify(identify::Event::Received {
                 peer_id,
@@ -183,59 +187,37 @@ fn build_swarm(identity: libp2p::identity::Keypair) -> anyhow::Result<Swarm<Beha
         .with_quic()
         .with_dns()?
         .with_behaviour(|key| Behaviour {
-            bootstrap: request_response::cbor::Behaviour::new(
-                [(
-                    StreamProtocol::new(BOOTSTRAP_PROTOCOL),
-                    request_response::ProtocolSupport::Inbound,
-                )],
-                request_response::Config::default(),
+            seeds: locap2p_discovery::Behaviour::server(),
+            identify: identify::Behaviour::new(
+                identify::Config::new("/locap2p/identify/1".to_owned(), key.public())
+                    .with_hide_listen_addrs(true),
             ),
-            identify: identify::Behaviour::new(identify::Config::new(
-                "/locap2p/identify/1".to_owned(),
-                key.public(),
-            )),
         })?
         .build();
 
     Ok(swarm)
 }
 
-fn handle_request(
-    registry: &mut Registry,
-    peer: libp2p::PeerId,
-    request: BootstrapRequest,
-) -> BootstrapResponse {
-    let addresses: Vec<String> = request
-        .addresses
-        .into_iter()
-        .filter(|address| Multiaddr::from_str(address).is_ok())
-        .take(MAX_ADDRESSES_PER_PEER)
-        .collect();
-
-    if addresses.is_empty() {
-        debug!(%peer, "ignoring announce without usable addresses");
-        return BootstrapResponse { peers: Vec::new() };
-    }
-
+fn handle_request(seed_pool: &mut SeedPool, peer: PeerId, request: SeedRequest) -> SeedResponse {
     let application = request.application.clone();
     let session = request.session.clone();
-    let peers = registry.announce(
+    let seeds = seed_pool.seed(
         request.application,
         request.session,
         peer.to_string(),
-        addresses,
-        Duration::from_millis(request.ttl_ms),
+        request.addresses,
+        Instant::now(),
     );
 
     debug!(
         %peer,
         application = %application,
         session = %session,
-        peers = peers.len(),
-        "session announce"
+        seeds = seeds.len(),
+        "seed request"
     );
 
-    BootstrapResponse { peers }
+    SeedResponse { seeds }
 }
 
 #[cfg(test)]

@@ -6,7 +6,11 @@ use locap2p_network::{Network, NetworkEvent, RequestId};
 use tokio::time::{Interval, MissedTickBehavior, interval};
 use tracing::{debug, warn};
 
-use crate::{Gossip, GossipError, GossipEvent, codec, message::SyncMessage};
+use crate::{
+    Gossip, GossipError, GossipEvent, codec,
+    membership::{MembershipChange, MembershipView, PeerRecord, now_ms},
+    message::SyncMessage,
+};
 
 #[derive(Default)]
 struct PeerSelector {
@@ -40,7 +44,8 @@ pub struct AntiEntropyGossip {
     network: Network,
     store: EventSet,
     config: GossipConfig,
-    peers: BTreeSet<NodeId>,
+    membership: MembershipView,
+    candidates: BTreeSet<NodeId>,
     pending: VecDeque<GossipEvent>,
     ticker: Interval,
     selector: PeerSelector,
@@ -53,6 +58,13 @@ impl AntiEntropyGossip {
             return Err(GossipError::InvalidConfig("sync interval must be non-zero"));
         }
 
+        let membership = MembershipView::new(
+            network.local_node_id(),
+            network.local_addresses(),
+            now_ms(),
+            config.membership_ttl_ms,
+            config.expiry_grace_ms,
+        );
         let mut ticker = interval(config.sync_interval());
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
@@ -60,16 +72,25 @@ impl AntiEntropyGossip {
             network,
             store: EventSet::default(),
             config,
-            peers: BTreeSet::new(),
+            membership,
+            candidates: BTreeSet::new(),
             pending: VecDeque::new(),
             ticker,
             selector: PeerSelector::default(),
         })
     }
 
-    fn send_to_fanout(&mut self, message: &SyncMessage) -> Result<(), GossipError> {
+    fn send_to_fanout(
+        &mut self,
+        message: &SyncMessage,
+        include_candidates: bool,
+    ) -> Result<(), GossipError> {
         let data = codec::encode(message)?;
-        let peers = self.selector.select(&self.peers, self.config.fanout);
+        let mut targets = self.membership.active_peers();
+        if include_candidates {
+            targets.extend(self.candidates.iter().cloned());
+        }
+        let peers = self.selector.select(&targets, self.config.fanout);
 
         for peer in peers {
             if let Err(error) = self.network.request(&peer, data.clone()) {
@@ -81,28 +102,39 @@ impl AntiEntropyGossip {
     }
 
     fn pull_from_peers(&mut self) -> Result<(), GossipError> {
+        self.refresh_local_record();
         let message = SyncMessage::Pull {
             have: self.store.summary(),
+            members: self.membership.records(),
         };
 
-        self.send_to_fanout(&message)
+        self.send_to_fanout(&message, true)
     }
 
     fn push_to_peers(&mut self, events: Vec<Event>) -> Result<(), GossipError> {
-        self.send_to_fanout(&SyncMessage::Push { events })
+        self.refresh_local_record();
+        let message = SyncMessage::Push {
+            events,
+            members: self.membership.records(),
+        };
+
+        self.send_to_fanout(&message, false)
+    }
+
+    fn refresh_local_record(&mut self) {
+        self.membership
+            .refresh_local(self.network.local_addresses(), now_ms());
+    }
+
+    fn expire_members(&mut self) {
+        let changes = self.membership.expire(now_ms());
+        self.apply_membership_changes(changes);
     }
 
     fn handle_network_event(&mut self, event: NetworkEvent) {
         match event {
-            NetworkEvent::PeerDiscovered(peer) => {
-                if self.peers.insert(peer.clone()) {
-                    self.pending.push_back(GossipEvent::PeerJoined(peer));
-                }
-            }
-            NetworkEvent::PeerExpired(peer) => {
-                if self.peers.remove(&peer) {
-                    self.pending.push_back(GossipEvent::PeerLeft(peer));
-                }
+            NetworkEvent::SeedPeers(peers) => {
+                self.candidates.extend(peers);
             }
             NetworkEvent::Request {
                 peer,
@@ -111,21 +143,38 @@ impl AntiEntropyGossip {
             } => self.handle_request(peer, request_id, &data),
             NetworkEvent::Response { peer, data } => self.handle_response(&peer, &data),
             NetworkEvent::RequestFailed { peer, error } => {
+                self.candidates.remove(&peer);
                 debug!(%peer, %error, "sync request failed");
             }
         }
     }
 
     fn handle_request(&mut self, peer: NodeId, request_id: RequestId, data: &[u8]) {
-        let response = match codec::decode(data) {
-            Ok(SyncMessage::Pull { have }) => self.answer_pull(have),
-            Ok(SyncMessage::Push { events }) => self.accept_push(events),
-            Ok(SyncMessage::PullResponse { .. } | SyncMessage::PushAck) => {
-                warn!(%peer, "ignoring unexpected sync request");
-                return;
-            }
+        let message = match codec::decode(data) {
+            Ok(message) => message,
             Err(error) => {
                 warn!(%peer, %error, "discarding invalid sync request");
+                return;
+            }
+        };
+
+        let response = match message {
+            SyncMessage::Pull { have, members } => {
+                self.merge_members(members);
+                let include_events = self.membership.is_active(&peer);
+                self.answer_pull(have, include_events)
+            }
+            SyncMessage::Push { events, members } => {
+                self.merge_members(members);
+                if self.membership.is_active(&peer) {
+                    self.merge_events(events);
+                } else {
+                    debug!(%peer, "discarding events from non-member");
+                }
+                SyncMessage::PushAck
+            }
+            SyncMessage::PullResponse { .. } | SyncMessage::PushAck => {
+                warn!(%peer, "ignoring unexpected sync request");
                 return;
             }
         };
@@ -135,18 +184,50 @@ impl AntiEntropyGossip {
         }
     }
 
-    fn answer_pull(&self, have: Vec<EventId>) -> SyncMessage {
-        let have: HashSet<EventId> = have.into_iter().collect();
-        let events = self
-            .store
-            .missing_from(&have, self.config.max_events_per_response);
+    fn answer_pull(&self, have: Vec<EventId>, include_events: bool) -> SyncMessage {
+        let events = if include_events {
+            let have = have.into_iter().collect::<HashSet<_>>();
+            self.store
+                .missing_from(&have, self.config.max_events_per_response)
+        } else {
+            Vec::new()
+        };
 
-        SyncMessage::PullResponse { events }
+        SyncMessage::PullResponse {
+            events,
+            members: self.membership.records(),
+        }
     }
 
-    fn accept_push(&mut self, events: Vec<Event>) -> SyncMessage {
-        self.merge_events(events);
-        SyncMessage::PushAck
+    fn merge_members(&mut self, members: Vec<PeerRecord>) {
+        let changes = self.membership.merge(members, now_ms());
+        self.apply_membership_changes(changes);
+    }
+
+    fn apply_membership_changes(&mut self, changes: Vec<MembershipChange>) {
+        for change in changes {
+            match change {
+                MembershipChange::Joined { peer_id, addresses } => {
+                    self.candidates.remove(&peer_id);
+                    self.register_peer_addresses(&peer_id, &addresses);
+                    self.pending.push_back(GossipEvent::PeerJoined(peer_id));
+                }
+                MembershipChange::Left { peer_id } => {
+                    self.candidates.remove(&peer_id);
+                    self.pending.push_back(GossipEvent::PeerLeft(peer_id));
+                }
+                MembershipChange::AddressesUpdated { peer_id, addresses } => {
+                    self.candidates.remove(&peer_id);
+                    self.register_peer_addresses(&peer_id, &addresses);
+                }
+            }
+        }
+    }
+
+    fn register_peer_addresses(&mut self, peer_id: &NodeId, addresses: &[String]) {
+        if let Err(error) = self.network.register_peer_addresses(peer_id, addresses) {
+            warn!(%peer_id, %error, "failed to register member addresses");
+        }
     }
 
     fn send_response(
@@ -161,8 +242,13 @@ impl AntiEntropyGossip {
 
     fn handle_response(&mut self, peer: &NodeId, data: &[u8]) {
         match codec::decode(data) {
-            Ok(SyncMessage::PullResponse { events }) => {
-                self.apply_pull_response(peer, events);
+            Ok(SyncMessage::PullResponse { events, members }) => {
+                self.merge_members(members);
+                if self.membership.is_active(peer) {
+                    self.apply_pull_response(peer, events);
+                } else {
+                    debug!(%peer, "discarding events from non-member");
+                }
             }
             Ok(SyncMessage::PushAck) => self.handle_push_ack(peer),
             Ok(SyncMessage::Pull { .. } | SyncMessage::Push { .. }) => {
@@ -220,6 +306,7 @@ impl Gossip for AntiEntropyGossip {
 
             tokio::select! {
                 _ = self.ticker.tick() => {
+                    self.expire_members();
                     if let Err(error) = self.pull_from_peers() {
                         warn!(%error, "failed to start pull round");
                     }
@@ -257,8 +344,6 @@ mod tests {
             },
             discovery: DiscoveryConfig {
                 bootstrap: Vec::new(),
-                membership_ttl_ms: 10_000,
-                expiry_grace_ms: 0,
             },
             connectivity: ConnectivityConfig::default(),
             gossip: GossipConfig::default(),

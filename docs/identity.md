@@ -76,7 +76,7 @@ behaviours.
 |---|---|
 | Identity keypair | Cryptographic identity and stable peer ID |
 | Identify | Exchange addresses and protocol metadata on a connection |
-| Bootstrap service | Discover peers in the same application/session |
+| Bootstrap service | Provide initial seed candidates for a session |
 | Relay | Forward traffic when peers cannot connect directly |
 | DCUtR | Attempt to upgrade a relayed connection to a direct connection |
 
@@ -86,4 +86,4 @@ behaviours.
 - Reusing a key preserves the peer ID and event author identity.
 - Deleting the key makes the node appear as a new peer.
 - Multiaddrs with `/p2p/<peer-id>` pin the expected service identity.
-- Identify does not add peers to a session; the bootstrap service does that.
+- Identify does not add peers to a session; gossip membership does that.

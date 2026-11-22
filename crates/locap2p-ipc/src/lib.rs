@@ -118,9 +118,7 @@ mod tests {
                 "request_timeout_ms": 1000
             },
             "discovery": {
-                "bootstrap": ["/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWTest"],
-                "membership_ttl_ms": 10000,
-                "expiry_grace_ms": 1000
+                "bootstrap": ["/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWTest"]
             },
             "connectivity": {
                 "relay": [],
@@ -131,7 +129,9 @@ mod tests {
             "gossip": {
                 "sync_interval_ms": 1000,
                 "fanout": 3,
-                "max_events_per_response": 64
+                "max_events_per_response": 64,
+                "membership_ttl_ms": 10000,
+                "expiry_grace_ms": 1000
             }
         }))
         .unwrap();

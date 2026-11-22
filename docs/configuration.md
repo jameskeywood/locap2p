@@ -20,16 +20,16 @@ services. Local and remote runtime configurations are ignored by Git.
 | `identity.path` | Persistent libp2p identity key file |
 | `network.listen_addrs` | Local bind addresses for libp2p transports |
 | `network.request_timeout_ms` | Request/response timeout |
-| `discovery.bootstrap` | Bootstrap service multiaddrs, including `/p2p/<id>` |
-| `discovery.membership_ttl_ms` | Session registration lifetime |
-| `discovery.expiry_grace_ms` | Local tolerance before reporting a peer left |
+| `discovery.bootstrap` | Bootstrap seed gateway multiaddrs, including `/p2p/<id>` |
 | `connectivity.relay` | Relay service multiaddrs, including `/p2p/<id>` |
 | `connectivity.reserve_relay` | Request a relay circuit reservation |
-| `connectivity.prefer_direct` | Prefer direct addresses over relayed addresses |
+| `connectivity.prefer_direct` | Rank direct addresses ahead of relayed addresses when dialing |
 | `connectivity.enable_dcutr` | Attempt direct connection upgrades through relay |
 | `gossip.sync_interval_ms` | Anti-entropy pull interval |
 | `gossip.fanout` | Peers contacted per pull or eager push |
 | `gossip.max_events_per_response` | Maximum events in one pull response |
+| `gossip.membership_ttl_ms` | Membership record lifetime |
+| `gossip.expiry_grace_ms` | Local tolerance before reporting a member left |
 
 Configuration is loaded as supplied. Endpoints must be valid multiaddrs for the
 network layer to start; malformed endpoints produce startup errors.
@@ -51,6 +51,9 @@ schema is used when the endpoints point at public DigitalOcean addresses.
 Bootstrap and relay services have separate static operator-owned configuration.
 Application configuration contains only their endpoints. Applications cannot
 change service limits or reservation settings.
+
+Bootstrap seed behaviour is configured with `seed_ttl_secs`,
+`max_seeds_per_session` and `max_seeds_returned` in the bootstrap service TOML.
 
 Start a service with:
 

@@ -131,6 +131,7 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 
 ### Programming
 - Rust book: https://doc.rust-lang.org/book/
+- Rust Design Patterns: https://rust-unofficial.github.io/patterns/
 
 ### Networking
 - libp2p docs: https://libp2p.io/docs/

@@ -120,23 +120,10 @@ impl Default for NetworkConfig {
     }
 }
 
-/// Bootstrap/rendezvous settings.
+/// Bootstrap gateway settings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DiscoveryConfig {
     pub bootstrap: Vec<ServiceEndpoint>,
-    pub membership_ttl_ms: u64,
-    #[serde(default)]
-    pub expiry_grace_ms: u64,
-}
-
-impl DiscoveryConfig {
-    pub fn membership_ttl(&self) -> Duration {
-        Duration::from_millis(self.membership_ttl_ms)
-    }
-
-    pub fn expiry_grace(&self) -> Duration {
-        Duration::from_millis(self.expiry_grace_ms)
-    }
 }
 
 /// Relay and direct-connection preferences.
@@ -169,6 +156,10 @@ pub struct GossipConfig {
     pub sync_interval_ms: u64,
     pub fanout: usize,
     pub max_events_per_response: usize,
+    #[serde(default = "default_membership_ttl_ms")]
+    pub membership_ttl_ms: u64,
+    #[serde(default = "default_expiry_grace_ms")]
+    pub expiry_grace_ms: u64,
 }
 
 impl Default for GossipConfig {
@@ -177,6 +168,8 @@ impl Default for GossipConfig {
             sync_interval_ms: 2_000,
             fanout: 3,
             max_events_per_response: 256,
+            membership_ttl_ms: default_membership_ttl_ms(),
+            expiry_grace_ms: default_expiry_grace_ms(),
         }
     }
 }
@@ -185,6 +178,14 @@ impl GossipConfig {
     pub fn sync_interval(&self) -> Duration {
         Duration::from_millis(self.sync_interval_ms)
     }
+}
+
+fn default_membership_ttl_ms() -> u64 {
+    10_000
+}
+
+fn default_expiry_grace_ms() -> u64 {
+    5_000
 }
 
 /// A multiaddr for a bootstrap or relay service.
@@ -293,8 +294,6 @@ mod tests {
                 bootstrap: vec![
                     ServiceEndpoint::new("/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWTest").unwrap(),
                 ],
-                membership_ttl_ms: 10_000,
-                expiry_grace_ms: 3_000,
             },
             connectivity: ConnectivityConfig {
                 relay: vec![
@@ -308,6 +307,8 @@ mod tests {
                 sync_interval_ms: 1_000,
                 fanout: 3,
                 max_events_per_response: 256,
+                membership_ttl_ms: 10_000,
+                expiry_grace_ms: 3_000,
             },
         }
     }

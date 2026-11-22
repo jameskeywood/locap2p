@@ -1,4 +1,4 @@
-//! libp2p networking, bootstrap discovery, relay connectivity and DCUtR.
+//! libp2p networking, seed discovery, relay connectivity and DCUtR.
 
 mod behaviour;
 mod endpoint;

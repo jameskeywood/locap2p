@@ -44,10 +44,7 @@ public record FrameworkConfig(
     public record Network(List<String> listenAddrs, long requestTimeoutMs) {
     }
 
-    public record Discovery(
-            List<String> bootstrap,
-            long membershipTtlMs,
-            long expiryGraceMs) {
+    public record Discovery(List<String> bootstrap) {
     }
 
     public record Connectivity(
@@ -60,6 +57,8 @@ public record FrameworkConfig(
     public record Gossip(
             long syncIntervalMs,
             int fanout,
-            int maxEventsPerResponse) {
+            int maxEventsPerResponse,
+            long membershipTtlMs,
+            long expiryGraceMs) {
     }
 }

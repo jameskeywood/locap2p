@@ -36,13 +36,24 @@ endpoint into `connectivity.relay`.
 
 If `reserve_relay` is enabled, the node requests a circuit reservation from each
 configured relay. The relay client produces a relayed circuit address and
-libp2p adds it as an external address. That address is included in bootstrap
-announcements.
+libp2p adds it as an external address. That address is included in seed requests
+and gossip membership records.
 
 When peers connect, direct addresses are preferred when `prefer_direct` is true.
-Otherwise the relayed circuit address is used. If `enable_dcutr` is true and both
-peers support DCUtR, libp2p attempts to replace a relayed connection with a
+Otherwise relayed circuit addresses are ranked first. This setting affects dial
+ranking; all usable addresses are still advertised. If `enable_dcutr` is true and
+both peers support DCUtR, libp2p attempts to replace a relayed connection with a
 direct connection.
+
+## Reachable addresses
+
+The connectivity layer maintains the set of addresses advertised to other peers.
+It combines usable listen addresses, confirmed external addresses,
+identify-observed addresses, and relayed circuit addresses. Unspecified bind
+addresses such as `0.0.0.0` are excluded.
+
+These addresses are used in bootstrap seed requests and in the local membership
+record that gossip disseminates.
 
 ## Listening addresses
 

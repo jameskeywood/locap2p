@@ -6,4 +6,7 @@ listen_addrs = ["/ip4/0.0.0.0/tcp/4002"]
 # advertise_addrs = ["/ip4/203.0.113.10/tcp/4002"]
 
 identity_path = "state/bootstrap/bootstrap.key"
-max_peers_per_session = 256
+
+seed_ttl_secs = 90
+max_seeds_per_session = 32
+max_seeds_returned = 8

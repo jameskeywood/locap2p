@@ -2115,6 +2115,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "locap2p-connectivity"
+version = "0.1.0"
+dependencies = [
+ "libp2p",
+ "locap2p-config",
+ "tracing",
+]
+
+[[package]]
 name = "locap2p-core"
 version = "0.1.0"
 dependencies = [
@@ -2128,9 +2137,11 @@ dependencies = [
 name = "locap2p-discovery"
 version = "0.1.0"
 dependencies = [
+ "libp2p",
  "locap2p-config",
  "serde",
  "serde_json",
+ "tracing",
 ]
 
 [[package]]
@@ -2193,6 +2204,7 @@ dependencies = [
  "futures",
  "libp2p",
  "locap2p-config",
+ "locap2p-connectivity",
  "locap2p-core",
  "locap2p-discovery",
  "locap2p-identity",

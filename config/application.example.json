@@ -17,9 +17,7 @@
   "discovery": {
     "bootstrap": [
       "/ip4/203.0.113.10/tcp/4002/p2p/12D3KooWReplaceWithBootstrapPeerId"
-    ],
-    "membership_ttl_ms": 10000,
-    "expiry_grace_ms": 5000
+    ]
   },
   "connectivity": {
     "relay": [
@@ -32,6 +30,8 @@
   "gossip": {
     "sync_interval_ms": 1000,
     "fanout": 3,
-    "max_events_per_response": 256
+    "max_events_per_response": 256,
+    "membership_ttl_ms": 10000,
+    "expiry_grace_ms": 5000
   }
 }

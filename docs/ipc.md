@@ -15,14 +15,14 @@ after every frame, skips empty input lines, and rejects frames larger than
 1. The application loads its configuration file.
 2. The application starts the host process.
 3. The application sends a configure frame as the first frame.
-4. The host loads the identity and starts the network, bootstrap discovery,
-   relay connectivity, and gossip.
+4. The host loads the identity and starts the network, seed discovery, relay
+   connectivity, and gossip.
 5. The host writes a ready frame.
 6. The application waits for the ready frame before sending publish frames.
 
 `ready` means the configuration was accepted and local networking started. It
-does not mean that the bootstrap node has been reached or that peers have been
-discovered.
+does not mean that the bootstrap gateway has been reached, that a seed has been
+returned, or that peers have joined.
 
 ```json
 {"type":"ready","node_id":"12D3KooW..."}

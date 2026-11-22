@@ -1,11 +1,7 @@
 use libp2p::{
-    StreamProtocol, dcutr, identify,
-    identity::Keypair,
-    relay, request_response,
-    swarm::{NetworkBehaviour, behaviour::toggle::Toggle},
+    StreamProtocol, identify, identity::Keypair, relay, request_response, swarm::NetworkBehaviour,
 };
 use locap2p_config::{ApplicationId, SessionId};
-use locap2p_discovery::{BOOTSTRAP_PROTOCOL, BootstrapRequest, BootstrapResponse};
 
 use crate::error::NetworkError;
 
@@ -27,10 +23,9 @@ pub(crate) fn session_protocol(
 #[derive(NetworkBehaviour)]
 pub(crate) struct Behaviour {
     pub(crate) sync: request_response::cbor::Behaviour<Vec<u8>, Vec<u8>>,
-    pub(crate) bootstrap: request_response::cbor::Behaviour<BootstrapRequest, BootstrapResponse>,
-    pub(crate) relay_client: relay::client::Behaviour,
+    pub(crate) seeds: locap2p_discovery::Behaviour,
+    pub(crate) connectivity: locap2p_connectivity::Behaviour,
     pub(crate) identify: identify::Behaviour,
-    pub(crate) dcutr: Toggle<dcutr::Behaviour>,
 }
 
 impl Behaviour {
@@ -46,33 +41,19 @@ impl Behaviour {
 
         let sync = request_response::cbor::Behaviour::<Vec<u8>, Vec<u8>>::new(
             [(sync_protocol, request_response::ProtocolSupport::Full)],
-            request_config.clone(),
+            request_config,
         );
-
-        let bootstrap =
-            request_response::cbor::Behaviour::<BootstrapRequest, BootstrapResponse>::new(
-                [(
-                    StreamProtocol::new(BOOTSTRAP_PROTOCOL),
-                    request_response::ProtocolSupport::Outbound,
-                )],
-                request_config,
-            );
 
         let identify = identify::Behaviour::new(identify::Config::new(
             "/locap2p/identify/1".to_owned(),
             key.public(),
         ));
 
-        let dcutr = enable_dcutr
-            .then(|| dcutr::Behaviour::new(key.public().to_peer_id()))
-            .into();
-
         Self {
             sync,
-            bootstrap,
-            relay_client,
+            seeds: locap2p_discovery::Behaviour::client(request_timeout),
+            connectivity: locap2p_connectivity::Behaviour::new(key, relay_client, enable_dcutr),
             identify,
-            dcutr,
         }
     }
 }
