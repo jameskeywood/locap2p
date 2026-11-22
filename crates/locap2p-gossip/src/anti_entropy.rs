@@ -54,10 +54,6 @@ pub struct AntiEntropyGossip {
 impl AntiEntropyGossip {
     /// Creates an anti-entropy gossip instance.
     pub fn start(network: Network, config: GossipConfig) -> Result<Self, GossipError> {
-        if config.sync_interval_ms == 0 {
-            return Err(GossipError::InvalidConfig("sync interval must be non-zero"));
-        }
-
         let membership = MembershipView::new(
             network.local_node_id(),
             network.local_addresses(),
@@ -332,8 +328,8 @@ mod tests {
         let config = FrameworkConfig {
             schema_version: CONFIG_SCHEMA_VERSION,
             application: ApplicationConfig {
-                id: ApplicationId::new("locap2p-test/1").unwrap(),
-                session: SessionId::new("test").unwrap(),
+                id: ApplicationId::new("locap2p-test/1"),
+                session: SessionId::new("test"),
             },
             identity: IdentityConfig {
                 path: directory.path().join("node.key"),

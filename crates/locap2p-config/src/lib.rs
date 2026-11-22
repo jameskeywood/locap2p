@@ -56,10 +56,8 @@ pub struct ApplicationConfig {
 pub struct ApplicationId(String);
 
 impl ApplicationId {
-    pub fn new(value: impl Into<String>) -> Result<Self, ConfigError> {
-        let value = value.into();
-        validate_name("application id", &value, 64, true)?;
-        Ok(Self(value))
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
     }
 
     pub fn as_str(&self) -> &str {
@@ -78,10 +76,8 @@ impl fmt::Display for ApplicationId {
 pub struct SessionId(String);
 
 impl SessionId {
-    pub fn new(value: impl Into<String>) -> Result<Self, ConfigError> {
-        let value = value.into();
-        validate_name("session id", &value, 128, false)?;
-        Ok(Self(value))
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
     }
 
     pub fn as_str(&self) -> &str {
@@ -196,10 +192,8 @@ fn default_expiry_grace_ms() -> u64 {
 pub struct ServiceEndpoint(String);
 
 impl ServiceEndpoint {
-    pub fn new(value: impl Into<String>) -> Result<Self, ConfigError> {
-        let value = value.into();
-        validate_endpoint("service", &value)?;
-        Ok(Self(value))
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
     }
 
     pub fn as_str(&self) -> &str {
@@ -213,66 +207,17 @@ impl fmt::Display for ServiceEndpoint {
     }
 }
 
-/// Errors returned while loading or validating configuration.
+/// Errors returned while loading configuration.
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("failed to read configuration: {0}")]
     Io(#[from] std::io::Error),
     #[error("failed to parse configuration: {0}")]
     Json(#[from] serde_json::Error),
-    #[error("invalid configuration: {0}")]
-    Invalid(String),
 }
 
 fn default_true() -> bool {
     true
-}
-
-fn validate_name(
-    field: &str,
-    value: &str,
-    max_len: usize,
-    allow_slash: bool,
-) -> Result<(), ConfigError> {
-    if value.is_empty() {
-        return Err(ConfigError::Invalid(format!("{field} is empty")));
-    }
-
-    if value.len() > max_len {
-        return Err(ConfigError::Invalid(format!(
-            "{field} exceeds {max_len} characters"
-        )));
-    }
-
-    let valid = value.chars().all(|character| {
-        character.is_ascii_alphanumeric()
-            || matches!(character, '-' | '_' | '.')
-            || (allow_slash && character == '/')
-    });
-
-    if !valid {
-        return Err(ConfigError::Invalid(format!(
-            "{field} contains unsupported characters"
-        )));
-    }
-
-    Ok(())
-}
-
-fn validate_endpoint(kind: &str, value: &str) -> Result<(), ConfigError> {
-    if !value.starts_with('/') {
-        return Err(ConfigError::Invalid(format!(
-            "{kind} endpoint is not a multiaddr: {value}"
-        )));
-    }
-
-    if !value.contains("/p2p/") || value.ends_with('/') {
-        return Err(ConfigError::Invalid(format!(
-            "{kind} endpoint must include a /p2p/<peer-id> component: {value}"
-        )));
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -283,22 +228,22 @@ mod tests {
         FrameworkConfig {
             schema_version: CONFIG_SCHEMA_VERSION,
             application: ApplicationConfig {
-                id: ApplicationId::new("locap2p-demo/1").unwrap(),
-                session: SessionId::new("demo").unwrap(),
+                id: ApplicationId::new("locap2p-demo/1"),
+                session: SessionId::new("demo"),
             },
             identity: IdentityConfig {
                 path: PathBuf::from("state/demo/node.key"),
             },
             network: NetworkConfig::default(),
             discovery: DiscoveryConfig {
-                bootstrap: vec![
-                    ServiceEndpoint::new("/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWTest").unwrap(),
-                ],
+                bootstrap: vec![ServiceEndpoint::new(
+                    "/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWTest",
+                )],
             },
             connectivity: ConnectivityConfig {
-                relay: vec![
-                    ServiceEndpoint::new("/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWRelay").unwrap(),
-                ],
+                relay: vec![ServiceEndpoint::new(
+                    "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWRelay",
+                )],
                 reserve_relay: true,
                 prefer_direct: true,
                 enable_dcutr: true,
@@ -320,11 +265,5 @@ mod tests {
         let decoded: FrameworkConfig = serde_json::from_str(&json).unwrap();
 
         assert_eq!(decoded, config);
-    }
-
-    #[test]
-    fn endpoint_requires_peer_id() {
-        assert!(ServiceEndpoint::new("/ip4/127.0.0.1/tcp/4002").is_err());
-        assert!(ServiceEndpoint::new("/ip4/127.0.0.1/tcp/4002/p2p/12D3KooW").is_ok());
     }
 }

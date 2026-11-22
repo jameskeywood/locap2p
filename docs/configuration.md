@@ -31,8 +31,7 @@ services. Local and remote runtime configurations are ignored by Git.
 | `gossip.membership_ttl_ms` | Membership record lifetime |
 | `gossip.expiry_grace_ms` | Local tolerance before reporting a member left |
 
-Configuration is loaded as supplied. Endpoints must be valid multiaddrs for the
-network layer to start; malformed endpoints produce startup errors.
+Configuration is loaded as supplied.
 
 ## Identity
 
@@ -62,5 +61,5 @@ locap2p-bootstrap --config config/services/bootstrap.local.toml
 locap2p-relay --config config/services/relay.local.toml
 ```
 
-Service endpoints must use fixed non-zero TCP ports. When listening on
-`0.0.0.0`, configure `advertise_addrs` with the address clients should use.
+When listening on `0.0.0.0`, configure `advertise_addrs` with the address
+clients should use.

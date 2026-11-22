@@ -28,8 +28,8 @@ mod tests {
     #[test]
     fn request_round_trips() {
         let request = SeedRequest {
-            application: ApplicationId::new("locap2p-demo/1").unwrap(),
-            session: SessionId::new("demo").unwrap(),
+            application: ApplicationId::new("locap2p-demo/1"),
+            session: SessionId::new("demo"),
             addresses: vec!["/ip4/127.0.0.1/tcp/4000".to_owned()],
         };
 

@@ -286,8 +286,8 @@ mod tests {
         FrameworkConfig {
             schema_version: locap2p_config::CONFIG_SCHEMA_VERSION,
             application: ApplicationConfig {
-                id: ApplicationId::new("locap2p-test/1").unwrap(),
-                session: SessionId::new("test").unwrap(),
+                id: ApplicationId::new("locap2p-test/1"),
+                session: SessionId::new("test"),
             },
             identity: IdentityConfig { path },
             network: NetworkConfig {

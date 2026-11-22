@@ -130,10 +130,6 @@ fn prepare(config: &RelayConfig) -> anyhow::Result<(Keypair, PeerId, Vec<String>
         }
     }
 
-    if endpoints.is_empty() {
-        anyhow::bail!("no usable TCP endpoints; configure a TCP listen address or advertise_addrs");
-    }
-
     Ok((identity, peer_id, endpoints))
 }
 
@@ -150,12 +146,9 @@ fn format_endpoint(value: &str, peer_id: PeerId) -> anyhow::Result<Option<String
         }
     }
 
-    let Some(port) = tcp_port else {
+    let Some(_) = tcp_port else {
         return Ok(None);
     };
-    if port == 0 {
-        anyhow::bail!("service endpoints must use a fixed non-zero TCP port");
-    }
 
     if matches!(address.iter().last(), Some(Protocol::P2p(_))) {
         address.pop();

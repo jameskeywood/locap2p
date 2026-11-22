@@ -31,28 +31,11 @@ impl BootstrapConfig {
     pub fn load(path: impl AsRef<Path>) -> anyhow::Result<Self> {
         let contents = fs::read_to_string(path)?;
         let config: Self = toml::from_str(&contents)?;
-        config.validate()?;
         Ok(config)
     }
 
     pub fn seed_ttl(&self) -> Duration {
         Duration::from_secs(self.seed_ttl_secs)
-    }
-
-    pub fn validate(&self) -> anyhow::Result<()> {
-        if self.listen_addrs.is_empty() {
-            anyhow::bail!("bootstrap service requires at least one listen address");
-        }
-
-        if self
-            .advertise_addrs
-            .iter()
-            .any(|address| !address.starts_with('/'))
-        {
-            anyhow::bail!("advertised addresses must be multiaddrs");
-        }
-
-        Ok(())
     }
 }
 

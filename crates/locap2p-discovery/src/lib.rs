@@ -137,8 +137,8 @@ mod tests {
 
     fn application() -> ApplicationConfig {
         ApplicationConfig {
-            id: ApplicationId::new("locap2p-test/1").unwrap(),
-            session: SessionId::new("test").unwrap(),
+            id: ApplicationId::new("locap2p-test/1"),
+            session: SessionId::new("test"),
         }
     }
 

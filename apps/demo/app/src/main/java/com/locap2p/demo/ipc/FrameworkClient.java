@@ -78,10 +78,6 @@ public final class FrameworkClient implements AutoCloseable {
     }
 
     public synchronized void listen(Consumer<FrameworkMessage> listener) {
-        if (readerThread != null) {
-            throw new IllegalStateException("listener already started");
-        }
-
         readerThread = Thread.ofPlatform()
                 .daemon(true)
                 .name("locap2p-ipc-reader")

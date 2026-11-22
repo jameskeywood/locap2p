@@ -21,32 +21,7 @@ impl RelayConfig {
     pub fn load(path: impl AsRef<std::path::Path>) -> anyhow::Result<Self> {
         let contents = fs::read_to_string(path)?;
         let config: Self = toml::from_str(&contents)?;
-        config.validate()?;
         Ok(config)
-    }
-
-    pub fn validate(&self) -> anyhow::Result<()> {
-        if self.listen_addrs.is_empty() {
-            anyhow::bail!("relay service requires at least one listen address");
-        }
-
-        if self
-            .advertise_addrs
-            .iter()
-            .any(|address| !address.starts_with('/'))
-        {
-            anyhow::bail!("advertised addresses must be multiaddrs");
-        }
-
-        if self.limits.max_reservations == 0 || self.limits.max_circuits == 0 {
-            anyhow::bail!("relay reservation and circuit limits must be non-zero");
-        }
-
-        if self.limits.max_circuit_bytes == 0 || self.limits.max_circuit_duration_ms == 0 {
-            anyhow::bail!("relay circuit limits must be non-zero");
-        }
-
-        Ok(())
     }
 }
 

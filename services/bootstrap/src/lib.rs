@@ -132,10 +132,6 @@ fn prepare(config: &BootstrapConfig) -> anyhow::Result<(Keypair, PeerId, Vec<Str
         }
     }
 
-    if endpoints.is_empty() {
-        anyhow::bail!("no usable TCP endpoints; configure a TCP listen address or advertise_addrs");
-    }
-
     Ok((identity, peer_id, endpoints))
 }
 
@@ -152,12 +148,9 @@ fn format_endpoint(value: &str, peer_id: PeerId) -> anyhow::Result<Option<String
         }
     }
 
-    let Some(port) = tcp_port else {
+    let Some(_) = tcp_port else {
         return Ok(None);
     };
-    if port == 0 {
-        anyhow::bail!("service endpoints must use a fixed non-zero TCP port");
-    }
 
     if matches!(address.iter().last(), Some(Protocol::P2p(_))) {
         address.pop();
@@ -238,11 +231,6 @@ mod tests {
             endpoint,
             "/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
         );
-    }
-
-    #[test]
-    fn rejects_zero_port() {
-        assert!(format_endpoint("/ip4/127.0.0.1/tcp/0", peer_id()).is_err());
     }
 
     #[test]

@@ -83,11 +83,11 @@ mod tests {
     use super::*;
 
     fn application() -> ApplicationId {
-        ApplicationId::new("locap2p-test/1").unwrap()
+        ApplicationId::new("locap2p-test/1")
     }
 
     fn session() -> SessionId {
-        SessionId::new("test").unwrap()
+        SessionId::new("test")
     }
 
     fn pool() -> SeedPool {
