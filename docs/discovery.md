@@ -2,49 +2,54 @@
 
 ## Overview
 
-Nodes find each other on the local network using libp2p mDNS. There are no
-bootstrap peers, DHT lookups, or relays; discovery is limited to the LAN.
+Bootstrap is a short-lived seed gateway. It helps a node make its first
+connections into a session, but it does not decide membership.
 
-The exchange protocol is described in [gossip.md](gossip.md).
+Membership is maintained and disseminated by gossip. Bootstrap responses are
+only candidate peers; a peer becomes a member when its membership record is
+observed through gossip.
 
-## Node identity
+Relay and direct-connection behaviour is described in
+[connectivity.md](connectivity.md). Membership dissemination is described in
+[gossip.md](gossip.md).
 
-Each host creates a fresh libp2p identity when it starts. The resulting peer
-identifier is used as the event author and is sent to the application in the
-ready frame. It changes when the host restarts.
+## Configuration
 
-## Listening
+```json
+{
+  "discovery": {
+    "bootstrap": [
+      "/ip4/127.0.0.1/tcp/4002/p2p/12D3KooW..."
+    ]
+  }
+}
+```
 
-By default the host listens on:
+Every bootstrap endpoint must include `/p2p/<peer-id>` so the expected service
+peer is pinned.
 
-| Transport | Address |
-|---|---|
-| TCP + Noise + Yamux | `/ip4/0.0.0.0/tcp/0` |
-| QUIC | `/ip4/0.0.0.0/udp/0/quic-v1` |
+## Seed flow
 
-Port `0` asks the operating system to assign an ephemeral port.
+1. The node starts listening and learns its reachable addresses.
+2. It periodically sends its session, peer id and addresses to the configured
+   bootstrap services.
+3. Bootstrap stores the node in a short-lived seed pool and returns a small
+   number of other recent seeds.
+4. The node registers the returned addresses with libp2p and passes the seed
+   ids to gossip as candidates.
+5. Gossip contacts the seeds and exchanges membership records.
+6. Once a membership record is accepted, the peer becomes a member and is
+   reported as `PeerJoined`.
 
-## Discovery flow
-
-1. mDNS advertises the host and listens for other nodes.
-2. When peers are discovered, the network layer groups all reported addresses
-   by peer identifier and registers them with the swarm.
-3. Each peer is reported once when it is first discovered. Gossip forwards this
-   to the application as a peer-joined notification.
-4. When mDNS expires a peer, the network layer removes it from the discovered
-   set and reports the expiry. Gossip forwards this as a peer-left
-   notification.
-5. Discovery does not connect to peers by itself. The first pull or push to a
-   peer triggers a libp2p dial using the registered addresses.
-
-Connections are authenticated by libp2p. mDNS itself is unauthenticated local
-network discovery.
+Bootstrap does not push updates. Its seed pool expires entries after the
+configured TTL, so a node that stops refreshing eventually drops out of the seed
+pool.
 
 ## Scope and limits
 
-- Discovery is LAN-wide. There is no application-level network ID or topic
-  filter, so every discovered peer is treated as a gossip peer.
-- A discovered peer that does not support the synchronization protocol cannot
-  exchange events; its sync requests fail.
-- mDNS expiry removes the peer from gossip selection but does not close an
-  existing connection or remove its addresses from the swarm.
+- Bootstrap is only an introduction service. It does not track membership,
+  peer-leave events, or session state beyond the short-lived seed pool.
+- Returning a seed does not make that peer a member. Membership is established
+  by gossip.
+- Seeds can be stale. Membership gossip corrects the actual view.
+- Bootstrap resource limits are configured statically by the service operator.

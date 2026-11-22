@@ -26,3 +26,16 @@ rustc-ice-*.txt
 # Java / Gradle
 .gradle/
 **/build/
+
+# Application and service configuration
+config/*
+!config/application.example.json
+!config/services/bootstrap.example.toml
+!config/services/relay.example.toml
+
+# Application state
+state/
+
+# Deployment state
+deploy/.env
+deploy/known_hosts

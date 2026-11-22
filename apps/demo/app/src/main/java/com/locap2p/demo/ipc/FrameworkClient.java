@@ -10,6 +10,9 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import com.locap2p.demo.model.config.FrameworkConfig;
+import com.locap2p.demo.model.ipc.FrameworkMessage;
+
 public final class FrameworkClient implements AutoCloseable {
     private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 
@@ -30,7 +33,10 @@ public final class FrameworkClient implements AutoCloseable {
         this.nodeId = nodeId;
     }
 
-    public static FrameworkClient start(Path hostBinary) throws IOException {
+    public static FrameworkClient start(
+        Path hostBinary,
+        FrameworkConfig config) throws IOException {
+
         Process process = new ProcessBuilder(hostBinary.toString())
                 .redirectError(ProcessBuilder.Redirect.INHERIT)
                 .start();
@@ -41,18 +47,27 @@ public final class FrameworkClient implements AutoCloseable {
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
 
+            writer.write(Protocol.configure(config));
+            writer.newLine();
+            writer.flush();
+
             String readyLine = reader.readLine();
             if (readyLine == null) {
                 throw new IOException("framework host exited before becoming ready");
             }
 
-            Protocol.ServerMessage first = Protocol.parseServerMessage(readyLine);
-            if (!(first instanceof Protocol.ServerMessage.Ready ready)) {
+            FrameworkMessage first = Protocol.parseFrameworkMessage(readyLine);
+            if (first instanceof FrameworkMessage.Error error) {
+                throw new IOException(
+                        "framework host rejected configuration: " + error.message());
+            }
+            if (!(first instanceof FrameworkMessage.Ready ready)) {
                 throw new IOException("expected ready frame but received: " + first);
             }
 
             return new FrameworkClient(process, writer, reader, ready.nodeId());
-        } catch (IOException | RuntimeException error) {
+        }
+        catch (IOException | RuntimeException error) {
             process.destroyForcibly();
             throw error;
         }
@@ -62,11 +77,7 @@ public final class FrameworkClient implements AutoCloseable {
         return nodeId;
     }
 
-    public synchronized void listen(Consumer<Protocol.ServerMessage> listener) {
-        if (readerThread != null) {
-            throw new IllegalStateException("listener already started");
-        }
-
+    public synchronized void listen(Consumer<FrameworkMessage> listener) {
         readerThread = Thread.ofPlatform()
                 .daemon(true)
                 .name("locap2p-ipc-reader")
@@ -96,7 +107,7 @@ public final class FrameworkClient implements AutoCloseable {
         }
     }
 
-    private void readFrames(Consumer<Protocol.ServerMessage> listener) {
+    private void readFrames(Consumer<FrameworkMessage> listener) {
         try {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -105,7 +116,7 @@ public final class FrameworkClient implements AutoCloseable {
                 }
 
                 try {
-                    listener.accept(Protocol.parseServerMessage(line));
+                    listener.accept(Protocol.parseFrameworkMessage(line));
                 } catch (IOException | RuntimeException error) {
                     System.err.printf("invalid IPC frame: %s%n", error.getMessage());
                 }

@@ -1,0 +1,12 @@
+listen_addrs = ["/ip4/0.0.0.0/tcp/4002"]
+
+# LAN example
+# advertise_addrs = ["/ip4/192.168.0.75/tcp/4002"]
+# WAN example
+# advertise_addrs = ["/ip4/203.0.113.10/tcp/4002"]
+
+identity_path = "state/bootstrap/bootstrap.key"
+
+seed_ttl_secs = 90
+max_seeds_per_session = 32
+max_seeds_returned = 8

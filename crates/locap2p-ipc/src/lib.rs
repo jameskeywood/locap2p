@@ -1,5 +1,6 @@
 //! Newline-delimited JSON protocol between applications and the framework host.
 
+use locap2p_config::FrameworkConfig;
 use locap2p_core::{Event, NodeId};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -13,6 +14,7 @@ pub const MAX_FRAME_BYTES: usize = 64 * 1024;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientFrame {
+    Configure { config: FrameworkConfig },
     Publish { payload: Value },
 }
 
@@ -85,6 +87,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use locap2p_config::FrameworkConfig;
     use serde_json::json;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, duplex};
 
@@ -96,6 +99,44 @@ mod tests {
             payload: json!({ "x": 1, "y": 2 }),
         };
         let (mut writer, reader) = duplex(1024);
+
+        write_frame(&mut writer, &frame).await.unwrap();
+        let mut lines = BufReader::new(reader).lines();
+        let decoded: Option<ClientFrame> = read_frame(&mut lines).await.unwrap();
+
+        assert_eq!(decoded, Some(frame));
+    }
+
+    #[tokio::test]
+    async fn configure_frame_round_trips() {
+        let config: FrameworkConfig = serde_json::from_value(json!({
+            "schema_version": 1,
+            "application": { "id": "locap2p-test/1", "session": "demo" },
+            "identity": { "path": "state/demo/node.key" },
+            "network": {
+                "listen_addrs": ["/ip4/127.0.0.1/tcp/0"],
+                "request_timeout_ms": 1000
+            },
+            "discovery": {
+                "bootstrap": ["/ip4/127.0.0.1/tcp/4002/p2p/12D3KooWTest"]
+            },
+            "connectivity": {
+                "relay": [],
+                "reserve_relay": false,
+                "prefer_direct": true,
+                "enable_dcutr": false
+            },
+            "gossip": {
+                "sync_interval_ms": 1000,
+                "fanout": 3,
+                "max_events_per_response": 64,
+                "membership_ttl_ms": 10000,
+                "expiry_grace_ms": 1000
+            }
+        }))
+        .unwrap();
+        let frame = ClientFrame::Configure { config };
+        let (mut writer, reader) = duplex(4096);
 
         write_frame(&mut writer, &frame).await.unwrap();
         let mut lines = BufReader::new(reader).lines();

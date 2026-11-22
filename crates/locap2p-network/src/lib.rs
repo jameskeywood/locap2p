@@ -1,15 +1,13 @@
-//! libp2p networking and local peer discovery.
+//! libp2p networking, seed discovery, relay connectivity and DCUtR.
 
 mod behaviour;
-mod config;
+mod endpoint;
 mod error;
 mod event;
 mod event_handler;
 mod network;
 mod swarm;
 
-pub use config::NetworkConfig;
 pub use error::NetworkError;
 pub use event::{NetworkEvent, RequestId};
-pub use libp2p::Multiaddr;
 pub use network::Network;

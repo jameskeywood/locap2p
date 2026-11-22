@@ -1,0 +1,15 @@
+listen_addrs = ["/ip4/0.0.0.0/tcp/4001"]
+
+# LAN example
+# advertise_addrs = ["/ip4/192.168.0.75/tcp/4001"]
+# WAN example
+# advertise_addrs = ["/ip4/203.0.113.10/tcp/4001"]
+
+identity_path = "state/relay/relay.key"
+
+max_reservations = 512
+max_reservations_per_peer = 16
+max_circuits = 256
+max_circuits_per_peer = 16
+max_circuit_duration_ms = 600000
+max_circuit_bytes = 1048576

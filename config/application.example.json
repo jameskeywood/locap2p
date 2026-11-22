@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "application": {
+    "id": "locap2p-demo/1",
+    "session": "demo"
+  },
+  "identity": {
+    "path": "state/demo/node.key"
+  },
+  "network": {
+    "listen_addrs": [
+      "/ip4/0.0.0.0/tcp/0",
+      "/ip4/0.0.0.0/udp/0/quic-v1"
+    ],
+    "request_timeout_ms": 5000
+  },
+  "discovery": {
+    "bootstrap": [
+      "/ip4/203.0.113.10/tcp/4002/p2p/12D3KooWReplaceWithBootstrapPeerId"
+    ]
+  },
+  "connectivity": {
+    "relay": [
+      "/ip4/203.0.113.10/tcp/4001/p2p/12D3KooWReplaceWithRelayPeerId"
+    ],
+    "reserve_relay": true,
+    "prefer_direct": true,
+    "enable_dcutr": true
+  },
+  "gossip": {
+    "sync_interval_ms": 1000,
+    "fanout": 3,
+    "max_events_per_response": 256,
+    "membership_ttl_ms": 10000,
+    "expiry_grace_ms": 5000
+  }
+}

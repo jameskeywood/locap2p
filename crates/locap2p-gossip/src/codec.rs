@@ -12,7 +12,7 @@ pub(crate) fn decode(data: &[u8]) -> Result<SyncMessage, CodecError> {
 
 fn validate(message: &SyncMessage) -> Result<(), CodecError> {
     let events = match message {
-        SyncMessage::PullResponse { events } | SyncMessage::Push { events } => events,
+        SyncMessage::PullResponse { events, .. } | SyncMessage::Push { events, .. } => events,
         SyncMessage::Pull { .. } | SyncMessage::PushAck => return Ok(()),
     };
 
@@ -38,6 +38,7 @@ mod tests {
     fn pull_round_trips() {
         let message = SyncMessage::Pull {
             have: vec![event("node-a", json!("hello"), 10).id().clone()],
+            members: Vec::new(),
         };
 
         assert_eq!(decode(&encode(&message).unwrap()).unwrap(), message);
@@ -47,6 +48,7 @@ mod tests {
     fn push_round_trips() {
         let message = SyncMessage::Push {
             events: vec![event("node-a", json!("hello"), 10)],
+            members: Vec::new(),
         };
 
         assert_eq!(decode(&encode(&message).unwrap()).unwrap(), message);
@@ -56,6 +58,7 @@ mod tests {
     fn pull_response_round_trips() {
         let message = SyncMessage::PullResponse {
             events: vec![event("node-a", json!("hello"), 10)],
+            members: Vec::new(),
         };
 
         assert_eq!(decode(&encode(&message).unwrap()).unwrap(), message);
@@ -72,6 +75,7 @@ mod tests {
     fn tampered_event_is_rejected() {
         let message = SyncMessage::Push {
             events: vec![event("node-a", json!("hello"), 10)],
+            members: Vec::new(),
         };
         let encoded = encode(&message).unwrap();
         let mut value: serde_json::Value = serde_json::from_slice(&encoded).unwrap();
@@ -85,6 +89,7 @@ mod tests {
     fn relayed_event_is_accepted() {
         let message = SyncMessage::PullResponse {
             events: vec![event("node-a", json!("hello"), 10)],
+            members: Vec::new(),
         };
 
         let decoded = decode(&encode(&message).unwrap()).unwrap();

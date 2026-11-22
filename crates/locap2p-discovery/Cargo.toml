@@ -1,0 +1,14 @@
+[package]
+name = "locap2p-discovery"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+locap2p-config = { workspace = true }
+
+libp2p = { workspace = true, features = ["cbor", "macros", "request-response"] }
+serde = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

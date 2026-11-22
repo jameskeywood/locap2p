@@ -2,10 +2,9 @@ package com.locap2p.demo;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
-import com.locap2p.demo.model.Position;
-import com.locap2p.demo.model.PositionEvent;
+import com.locap2p.demo.model.player.Position;
+import com.locap2p.demo.model.player.PositionEvent;
 
 public final class ApplicationState {
     private static final long INITIAL_SEQ = 0;
@@ -14,11 +13,11 @@ public final class ApplicationState {
     private final Map<String, PositionEvent> positions = new HashMap<>();
 
     public ApplicationState(String localNodeId, Position initialPosition) {
-        this.localNodeId = Objects.requireNonNull(localNodeId, "localNodeId");
+        this.localNodeId = localNodeId;
 
         PositionEvent initial = new PositionEvent(
                 localNodeId,
-                Objects.requireNonNull(initialPosition, "initialPosition"),
+                initialPosition,
                 INITIAL_SEQ);
 
         positions.put(localNodeId, initial);

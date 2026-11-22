@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import com.locap2p.demo.model.Position;
-import com.locap2p.demo.model.PositionEvent;
+import com.locap2p.demo.model.player.Position;
+import com.locap2p.demo.model.player.PositionEvent;
 
 class ApplicationStateTest {
     private static final String LOCAL_NODE = "local";

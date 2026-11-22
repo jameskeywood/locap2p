@@ -10,8 +10,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
 
-import com.locap2p.demo.model.Position;
-import com.locap2p.demo.model.PositionEvent;
+import com.locap2p.demo.model.ipc.FrameworkMessage;
+import com.locap2p.demo.model.player.Position;
+import com.locap2p.demo.model.player.PositionEvent;
 
 class ProtocolTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -31,10 +32,12 @@ class ProtocolTest {
                 }
                 """;
 
-        Protocol.ServerMessage message = Protocol.parseServerMessage(line);
-        Protocol.ServerMessage.EventMessage event = assertInstanceOf(
-                Protocol.ServerMessage.EventMessage.class,
-                message);
+        FrameworkMessage message = Protocol.parseFrameworkMessage(line);
+
+        FrameworkMessage.EventMessage event = assertInstanceOf(
+            FrameworkMessage.EventMessage.class,
+            message
+        );
 
         assertEquals("peer", event.event().author());
         assertEquals(2, event.event().seq());

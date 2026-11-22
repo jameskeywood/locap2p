@@ -4,18 +4,25 @@ members = ["crates/*", "services/*", "examples/*"]
 default-members = ["crates/*", "services/*"]
 
 [workspace.dependencies]
+locap2p-config = { path = "crates/locap2p-config" }
+locap2p-connectivity = { path = "crates/locap2p-connectivity" }
 locap2p-core = { path = "crates/locap2p-core" }
+locap2p-discovery = { path = "crates/locap2p-discovery" }
 locap2p-gossip = { path = "crates/locap2p-gossip" }
+locap2p-identity = { path = "crates/locap2p-identity" }
 locap2p-ipc = { path = "crates/locap2p-ipc" }
 locap2p-network = { path = "crates/locap2p-network" }
 
 anyhow = "1"
 blake3 = "1"
+clap = "4.5"
 futures = "0.3"
 libp2p = "0.57"
 serde = "1"
 serde_json = "1"
+tempfile = "3"
 thiserror = "2"
 tokio = "1"
+toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = "0.3"

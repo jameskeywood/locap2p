@@ -1,4 +1,4 @@
-package com.locap2p.demo.model;
+package com.locap2p.demo.model.player;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

@@ -21,10 +21,8 @@ impl fmt::Display for RequestId {
 /// Event emitted by the network layer.
 #[derive(Debug, Clone)]
 pub enum NetworkEvent {
-    /// A peer was discovered by mDNS.
-    PeerDiscovered(NodeId),
-    /// A discovered peer expired.
-    PeerExpired(NodeId),
+    /// Bootstrap returned seed peers for initial membership exchange.
+    SeedPeers(Vec<NodeId>),
     /// A peer sent a request that must be answered.
     Request {
         peer: NodeId,

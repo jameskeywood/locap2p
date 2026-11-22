@@ -1,21 +1,20 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use libp2p::{
-    Multiaddr, PeerId, Swarm, mdns,
+    PeerId, identify,
     request_response::{self, Message, ResponseChannel},
     swarm::SwarmEvent,
 };
 use locap2p_core::NodeId;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use crate::{
-    behaviour::{Behaviour, BehaviourEvent},
+    behaviour::BehaviourEvent,
     event::{NetworkEvent, RequestId},
 };
 
 #[derive(Default)]
 pub(crate) struct SwarmEventHandler {
-    discovered_peers: HashSet<PeerId>,
     pending_requests: HashMap<RequestId, ResponseChannel<Vec<u8>>>,
     next_request_id: u64,
     pending_events: VecDeque<NetworkEvent>,
@@ -26,6 +25,10 @@ impl SwarmEventHandler {
         self.pending_events.pop_front()
     }
 
+    pub(crate) fn push_event(&mut self, event: NetworkEvent) {
+        self.pending_events.push_back(event);
+    }
+
     pub(crate) fn take_request(
         &mut self,
         request_id: RequestId,
@@ -33,18 +36,8 @@ impl SwarmEventHandler {
         self.pending_requests.remove(&request_id)
     }
 
-    pub(crate) fn handle(
-        &mut self,
-        swarm: &mut Swarm<Behaviour>,
-        event: SwarmEvent<BehaviourEvent>,
-    ) {
+    pub(crate) fn handle(&mut self, event: SwarmEvent<BehaviourEvent>) {
         match event {
-            SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Discovered(peers))) => {
-                self.handle_discovered_peers(swarm, peers);
-            }
-            SwarmEvent::Behaviour(BehaviourEvent::Mdns(mdns::Event::Expired(peers))) => {
-                self.handle_expired_peers(peers);
-            }
             SwarmEvent::Behaviour(BehaviourEvent::Sync(request_response::Event::Message {
                 peer,
                 message,
@@ -71,11 +64,17 @@ impl SwarmEventHandler {
             )) => {
                 debug!(%peer, "sync response sent");
             }
-            SwarmEvent::NewListenAddr { address, .. } => {
-                info!(%address, "listening");
+            SwarmEvent::Behaviour(BehaviourEvent::Identify(identify::Event::Error {
+                peer_id,
+                error,
+                ..
+            })) => {
+                debug!(%peer_id, %error, "identify failed");
             }
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                debug!(%peer_id, "connection established");
+            SwarmEvent::ConnectionEstablished {
+                peer_id, endpoint, ..
+            } => {
+                debug!(%peer_id, ?endpoint, "connection established");
             }
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
                 debug!(%peer_id, "connection closed");
@@ -109,38 +108,6 @@ impl SwarmEventHandler {
                     peer: node_id(peer),
                     data: response,
                 });
-            }
-        }
-    }
-
-    fn handle_discovered_peers(
-        &mut self,
-        swarm: &mut Swarm<Behaviour>,
-        peers: Vec<(PeerId, Multiaddr)>,
-    ) {
-        let mut addresses_by_peer: HashMap<PeerId, Vec<Multiaddr>> = HashMap::new();
-        for (peer_id, address) in peers {
-            addresses_by_peer.entry(peer_id).or_default().push(address);
-        }
-
-        for (peer_id, addresses) in addresses_by_peer {
-            for address in &addresses {
-                swarm.add_peer_address(peer_id, address.clone());
-            }
-
-            if self.discovered_peers.insert(peer_id) {
-                info!(%peer_id, addresses = addresses.len(), "discovered peer");
-                self.pending_events
-                    .push_back(NetworkEvent::PeerDiscovered(node_id(peer_id)));
-            }
-        }
-    }
-
-    fn handle_expired_peers(&mut self, peers: Vec<(PeerId, Multiaddr)>) {
-        for (peer_id, _address) in peers {
-            if self.discovered_peers.remove(&peer_id) {
-                self.pending_events
-                    .push_back(NetworkEvent::PeerExpired(node_id(peer_id)));
             }
         }
     }

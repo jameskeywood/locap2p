@@ -4,8 +4,6 @@ use thiserror::Error;
 /// Errors returned by gossip operations.
 #[derive(Debug, Error)]
 pub enum GossipError {
-    #[error("invalid gossip configuration: {0}")]
-    InvalidConfig(&'static str),
     #[error("failed to encode gossip message: {0}")]
     Encode(#[from] serde_json::Error),
     #[error(transparent)]

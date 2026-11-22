@@ -22,25 +22,18 @@ impl EventSet {
         self.events.contains_key(id)
     }
 
-    /// Merges another set into this one and returns the number of new events.
-    pub fn merge(&mut self, other: &Self) -> usize {
-        let mut inserted = 0;
+    /// Inserts every event that is not already present and returns the newly
+    /// inserted events.
+    pub fn merge(&mut self, events: Vec<Event>) -> Vec<Event> {
+        let mut inserted = Vec::new();
 
-        for event in other.events.values() {
+        for event in events {
             if self.insert(event.clone()) {
-                inserted += 1;
+                inserted.push(event);
             }
         }
 
         inserted
-    }
-
-    pub fn len(&self) -> usize {
-        self.events.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.events.is_empty()
     }
 
     /// Returns the IDs of every event in the set, in sorted order.
@@ -56,10 +49,6 @@ impl EventSet {
             .take(limit)
             .cloned()
             .collect()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &Event> {
-        self.events.values()
     }
 }
 
@@ -77,56 +66,19 @@ mod tests {
 
         assert!(set.insert(event.clone()));
         assert!(!set.insert(event));
-        assert_eq!(set.len(), 1);
+        assert_eq!(set.summary().len(), 1);
     }
 
     #[test]
-    fn merge_is_idempotent() {
-        let mut left = EventSet::default();
-        let mut right = EventSet::default();
-        left.insert(Event::new(NodeId::from("node-a"), 1, json!("one"), 1));
-        right.insert(Event::new(NodeId::from("node-b"), 1, json!("two"), 2));
+    fn merge_returns_only_new_events() {
+        let mut set = EventSet::default();
+        let known = Event::new(NodeId::from("node-a"), 1, json!("known"), 1);
+        let new = Event::new(NodeId::from("node-b"), 1, json!("new"), 2);
+        set.insert(known.clone());
 
-        assert_eq!(left.merge(&right), 1);
-        assert_eq!(left.merge(&right), 0);
-        assert_eq!(left.len(), 2);
-    }
-
-    #[test]
-    fn merge_is_commutative() {
-        let mut left = EventSet::default();
-        let mut right = EventSet::default();
-        left.insert(Event::new(NodeId::from("node-a"), 1, json!("left"), 1));
-        right.insert(Event::new(NodeId::from("node-b"), 1, json!("right"), 2));
-
-        let mut left_then_right = left.clone();
-        left_then_right.merge(&right);
-
-        let mut right_then_left = right.clone();
-        right_then_left.merge(&left);
-
-        assert_eq!(sorted_ids(&left_then_right), sorted_ids(&right_then_left));
-    }
-
-    #[test]
-    fn merge_is_associative() {
-        let mut first = EventSet::default();
-        let mut second = EventSet::default();
-        let mut third = EventSet::default();
-        first.insert(Event::new(NodeId::from("node-a"), 1, json!("one"), 1));
-        second.insert(Event::new(NodeId::from("node-b"), 1, json!("two"), 2));
-        third.insert(Event::new(NodeId::from("node-c"), 1, json!("three"), 3));
-
-        let mut left = first.clone();
-        let mut second_then_third = second.clone();
-        second_then_third.merge(&third);
-        left.merge(&second_then_third);
-
-        let mut right = first.clone();
-        right.merge(&second);
-        right.merge(&third);
-
-        assert_eq!(sorted_ids(&left), sorted_ids(&right));
+        assert_eq!(set.merge(vec![known, new.clone()]), vec![new.clone()]);
+        assert!(set.merge(vec![new]).is_empty());
+        assert_eq!(set.summary().len(), 2);
     }
 
     #[test]
@@ -170,11 +122,5 @@ mod tests {
         let events = set.missing_from(&HashSet::new(), 2);
 
         assert_eq!(events.len(), 2);
-    }
-
-    fn sorted_ids(set: &EventSet) -> Vec<String> {
-        let mut ids: Vec<String> = set.iter().map(|event| event.id().to_string()).collect();
-        ids.sort();
-        ids
     }
 }

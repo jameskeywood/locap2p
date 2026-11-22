@@ -1,0 +1,68 @@
+name: locap2p
+
+services:
+  bootstrap:
+    image: ${LOCAP2P_IMAGE}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command:
+      - /usr/local/bin/locap2p-bootstrap
+      - --config
+      - /config/bootstrap.toml
+    network_mode: host
+    working_dir: /app
+    user: "${LOCAP2P_UID}:${LOCAP2P_GID}"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 10s
+    environment:
+      RUST_LOG: ${RUST_LOG}
+    volumes:
+      - ${BOOTSTRAP_CONFIG}:/config/bootstrap.toml:ro
+      - ${BOOTSTRAP_STATE}:/app/state/bootstrap
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  relay:
+    image: ${LOCAP2P_IMAGE}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command:
+      - /usr/local/bin/locap2p-relay
+      - --config
+      - /config/relay.toml
+    network_mode: host
+    working_dir: /app
+    user: "${LOCAP2P_UID}:${LOCAP2P_GID}"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 10s
+    environment:
+      RUST_LOG: ${RUST_LOG}
+    volumes:
+      - ${RELAY_CONFIG}:/config/relay.toml:ro
+      - ${RELAY_STATE}:/app/state/relay
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
