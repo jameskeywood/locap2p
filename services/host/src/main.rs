@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::Result;
 use clap::Parser;
-use locap2p_gossip::{AntiEntropyGossip, GossipEvent};
+use locap2p_gossip::{GossipEvent, start as start_gossip};
 use locap2p_ipc::{ApplicationFrame, FrameworkFrame, read_frame, write_frame};
 use locap2p_network::Network;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
         }
     };
     let node_id = network.local_node_id();
-    let gossip = match AntiEntropyGossip::start(network, config.gossip.clone()) {
+    let gossip = match start_gossip(network, &config.gossip) {
         Ok(gossip) => gossip,
         Err(error) => {
             send_error(format!("failed to start gossip: {error}"), &mut write_half).await?;

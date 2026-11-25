@@ -2,7 +2,9 @@
 
 use std::future::Future;
 
+use locap2p_config::GossipConfig;
 use locap2p_core::Event;
+use locap2p_network::Network;
 
 mod anti_entropy;
 mod codec;
@@ -24,4 +26,9 @@ pub trait Gossip: Send {
 
     /// Waits for the next gossip event.
     fn next_event(&mut self) -> impl Future<Output = Option<GossipEvent>> + Send;
+}
+
+/// Starts the active gossip implementation.
+pub fn start(network: Network, config: &GossipConfig) -> Result<impl Gossip, GossipError> {
+    AntiEntropyGossip::start(network, config.clone())
 }
