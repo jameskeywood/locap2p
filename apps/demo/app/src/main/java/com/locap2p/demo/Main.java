@@ -17,6 +17,7 @@ import com.locap2p.demo.model.player.Direction;
 import com.locap2p.demo.model.player.Player;
 import com.locap2p.demo.model.player.Position;
 import com.locap2p.demo.model.player.PositionEvent;
+import com.locap2p.demo.run.RandomWalker;
 import com.locap2p.demo.ui.InspectorWindow;
 
 /**
@@ -60,6 +61,8 @@ public final class Main {
                     client.nodeId(),
                     new Position(0, 0));
             client.listen(message -> handleServerMessage(state, message));
+            Runtime.getRuntime().addShutdownHook(
+                    new Thread(client::close, "locap2p-shutdown"));
 
             System.out.println("Node: " + client.nodeId());
             System.out.println("Session: " + config.application().session());
@@ -69,14 +72,19 @@ public final class Main {
                 InspectorWindow.start(state, config.application().session());
             }
 
-            readCommands(client, state);
+            if (arguments.random()) {
+                new RandomWalker(client::publish).run(state.local().position());
+            } else {
+                readCommands(client, state);
+            }
         }
     }
 
-    private static Arguments parseArguments(String[] args) {
+    static Arguments parseArguments(String[] args) {
         Path hostBinary = null;
         Path config = null;
         boolean headless = false;
+        boolean random = false;
 
         for (int index = 0; index < args.length; index++) {
             switch (args[index]) {
@@ -93,6 +101,7 @@ public final class Main {
                     config = Path.of(args[++index]);
                 }
                 case "--headless" -> headless = true;
+                case "--random" -> random = true;
                 default -> {
                     return null;
                 }
@@ -102,15 +111,16 @@ public final class Main {
         if (hostBinary == null || config == null) {
             return null;
         }
-        return new Arguments(hostBinary, config, headless);
+        return new Arguments(hostBinary, config, headless, random);
     }
 
     private static void printUsage() {
         System.err.println(
-                "usage: locap2p-demo --host-bin <path> --config <path> [--headless]");
+                "usage: locap2p-demo --host-bin <path> --config <path>"
+                        + " [--headless] [--random]");
     }
 
-    private record Arguments(Path hostBinary, Path config, boolean headless) {
+    record Arguments(Path hostBinary, Path config, boolean headless, boolean random) {
     }
 
     private static void readCommands(
