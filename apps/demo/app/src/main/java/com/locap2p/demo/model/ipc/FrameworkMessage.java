@@ -1,5 +1,8 @@
 package com.locap2p.demo.model.ipc;
 
+/**
+ * A message received from the framework host.
+ */
 public sealed interface FrameworkMessage {
     record Ready(String nodeId) implements FrameworkMessage {
     }

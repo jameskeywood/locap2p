@@ -9,10 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 
 /**
- * Application-defined configuration passed to the framework host over IPC.
- *
- * <p>The JSON representation is the shared configuration contract between the
- * application and the Rust framework.
+ * Configuration passed to the framework host over IPC.
  */
 public record FrameworkConfig(
         int schemaVersion,

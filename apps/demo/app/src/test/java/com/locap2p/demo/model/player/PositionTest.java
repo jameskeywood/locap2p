@@ -14,4 +14,13 @@ class PositionTest {
         assertEquals(new Position(-1, 0), origin.movedBy(Direction.LEFT));
         assertEquals(new Position(1, 0), origin.movedBy(Direction.RIGHT));
     }
+
+    @Test
+    void computesDistanceToAnotherPosition() {
+        Position origin = new Position(0, 0);
+
+        assertEquals(0.0, origin.distanceTo(new Position(0, 0)), 1e-9);
+        assertEquals(5.0, origin.distanceTo(new Position(3, 4)), 1e-9);
+        assertEquals(2.0, new Position(1, 1).distanceTo(new Position(3, 1)), 1e-9);
+    }
 }

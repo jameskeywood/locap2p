@@ -1,5 +1,8 @@
 package com.locap2p.demo.model.player;
 
+/**
+ * A player position on the game grid.
+ */
 public record Position(int x, int y) {
     public Position movedBy(Direction direction) {
         return switch (direction) {
@@ -8,5 +11,9 @@ public record Position(int x, int y) {
             case LEFT -> new Position(x - 1, y);
             case RIGHT -> new Position(x + 1, y);
         };
+    }
+
+    public double distanceTo(Position other) {
+        return Math.hypot(x - other.x(), y - other.y());
     }
 }

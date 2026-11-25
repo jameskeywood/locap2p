@@ -20,10 +20,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A single connection over a Unix domain socket.
- *
- * The socket is created in a private temporary directory, bound before the
- * host process is started, and removed when this object is closed.
+ * A Unix domain socket connection to the framework host.
  */
 public final class IpcSocket implements AutoCloseable {
     private static final String DIRECTORY_PREFIX = "locap2p-";
@@ -48,9 +45,6 @@ public final class IpcSocket implements AutoCloseable {
         this.listener = listener;
     }
 
-    /**
-     * Creates a listening Unix domain socket in a private temporary directory.
-     */
     public static IpcSocket listen() throws IOException {
         Path socketDir = Files.createTempDirectory(
                 DIRECTORY_PREFIX,
@@ -71,18 +65,10 @@ public final class IpcSocket implements AutoCloseable {
         }
     }
 
-    /**
-     * Returns the filesystem path the host must connect to.
-     */
     public Path path() {
         return socketPath;
     }
 
-    /**
-     * Waits for the host process to connect and prepares blocking line I/O.
-     *
-     * @param process host process; used to fail fast if it exits first
-     */
     public void accept(Process process) throws IOException {
         Objects.requireNonNull(process, "process");
 
@@ -125,16 +111,10 @@ public final class IpcSocket implements AutoCloseable {
         }
     }
 
-    /**
-     * Reads one newline-terminated line, or {@code null} at end of stream.
-     */
     public String readLine() throws IOException {
         return requireReader().readLine();
     }
 
-    /**
-     * Writes one newline-terminated line and flushes it.
-     */
     public void writeLine(String line) throws IOException {
         BufferedWriter currentWriter = requireWriter();
         currentWriter.write(line);
@@ -142,9 +122,6 @@ public final class IpcSocket implements AutoCloseable {
         currentWriter.flush();
     }
 
-    /**
-     * Signals end of output to the host, allowing it to shut down cleanly.
-     */
     public void shutdownOutput() throws IOException {
         if (writer != null) {
             writer.flush();

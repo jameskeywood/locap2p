@@ -9,12 +9,16 @@ import java.util.function.Consumer;
 import com.locap2p.demo.model.config.FrameworkConfig;
 import com.locap2p.demo.model.ipc.FrameworkMessage;
 
+/**
+ * Manages the framework host process and its IPC connection.
+ */
 public final class FrameworkClient implements AutoCloseable {
     private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 
     private final Process process;
     private final IpcSocket socket;
     private final String nodeId;
+    private boolean closed;
 
     private FrameworkClient(Process process, IpcSocket socket, String nodeId) {
         this.process = Objects.requireNonNull(process, "process");
@@ -83,7 +87,12 @@ public final class FrameworkClient implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
+
         try {
             socket.shutdownOutput();
         } catch (IOException ignored) {
