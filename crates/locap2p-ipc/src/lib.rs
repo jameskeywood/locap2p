@@ -1,4 +1,5 @@
-//! Newline-delimited JSON protocol between applications and the framework host.
+//! Newline-delimited JSON framing for the Unix domain socket between
+//! applications and the framework host.
 
 use locap2p_config::FrameworkConfig;
 use locap2p_core::{Event, NodeId};
@@ -13,7 +14,7 @@ pub const MAX_FRAME_BYTES: usize = 64 * 1024;
 /// Frames sent from an application to the framework host.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum ClientFrame {
+pub enum ApplicationFrame {
     Configure { config: FrameworkConfig },
     Publish { payload: Value },
 }
@@ -21,7 +22,7 @@ pub enum ClientFrame {
 /// Frames sent from the framework host to an application.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum ServerFrame {
+pub enum FrameworkFrame {
     Ready { node_id: NodeId },
     Event { event: Event },
     PeerJoined { node_id: NodeId },
@@ -95,14 +96,14 @@ mod tests {
 
     #[tokio::test]
     async fn client_frame_round_trips() {
-        let frame = ClientFrame::Publish {
+        let frame = ApplicationFrame::Publish {
             payload: json!({ "x": 1, "y": 2 }),
         };
         let (mut writer, reader) = duplex(1024);
 
         write_frame(&mut writer, &frame).await.unwrap();
         let mut lines = BufReader::new(reader).lines();
-        let decoded: Option<ClientFrame> = read_frame(&mut lines).await.unwrap();
+        let decoded: Option<ApplicationFrame> = read_frame(&mut lines).await.unwrap();
 
         assert_eq!(decoded, Some(frame));
     }
@@ -135,12 +136,12 @@ mod tests {
             }
         }))
         .unwrap();
-        let frame = ClientFrame::Configure { config };
+        let frame = ApplicationFrame::Configure { config };
         let (mut writer, reader) = duplex(4096);
 
         write_frame(&mut writer, &frame).await.unwrap();
         let mut lines = BufReader::new(reader).lines();
-        let decoded: Option<ClientFrame> = read_frame(&mut lines).await.unwrap();
+        let decoded: Option<ApplicationFrame> = read_frame(&mut lines).await.unwrap();
 
         assert_eq!(decoded, Some(frame));
     }
@@ -151,7 +152,7 @@ mod tests {
         writer.write_all(b"not json\n").await.unwrap();
         let mut lines = BufReader::new(reader).lines();
 
-        let result: Result<Option<ClientFrame>, _> = read_frame(&mut lines).await;
+        let result: Result<Option<ApplicationFrame>, _> = read_frame(&mut lines).await;
 
         assert!(matches!(result, Err(IpcError::Decode(_))));
     }

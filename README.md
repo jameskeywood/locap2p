@@ -132,6 +132,7 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 ### Programming
 - Rust book: https://doc.rust-lang.org/book/
 - Rust Design Patterns: https://rust-unofficial.github.io/patterns/
+- CLI args with Rust: https://rust-cli.github.io/book/tutorial/cli-args.html
 
 ### Networking
 - libp2p docs: https://libp2p.io/docs/
@@ -147,3 +148,5 @@ https://jameskeywood.atlassian.net/jira/software/projects/LOC/summary
 - STDIN/STDOUT/STDERR: https://stackoverflow.com/questions/3385201/confused-about-stdin-stdout-and-stderr
 - NDJSON: https://en.wikipedia.org/wiki/JSON_streaming
 - Unix Domain Sockets: https://kernel-internals.org/ipc/unix-sockets/
+- Rust Tokio UnixStream: https://docs.rs/tokio/latest/tokio/net/struct.UnixStream.html
+- Java Unix Domain Sockets: https://inside.java/2021/02/03/jep380-unix-domain-sockets-channels/

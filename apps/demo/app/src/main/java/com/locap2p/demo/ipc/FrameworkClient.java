@@ -1,12 +1,8 @@
 package com.locap2p.demo.ipc;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -17,41 +13,35 @@ public final class FrameworkClient implements AutoCloseable {
     private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 
     private final Process process;
-    private final BufferedWriter writer;
-    private final BufferedReader reader;
+    private final IpcSocket socket;
     private final String nodeId;
-    private Thread readerThread;
 
-    private FrameworkClient(
-            Process process,
-            BufferedWriter writer,
-            BufferedReader reader,
-            String nodeId) {
-        this.process = process;
-        this.writer = writer;
-        this.reader = reader;
-        this.nodeId = nodeId;
+    private FrameworkClient(Process process, IpcSocket socket, String nodeId) {
+        this.process = Objects.requireNonNull(process, "process");
+        this.socket = Objects.requireNonNull(socket, "socket");
+        this.nodeId = Objects.requireNonNull(nodeId, "nodeId");
     }
 
     public static FrameworkClient start(
         Path hostBinary,
         FrameworkConfig config) throws IOException {
 
-        Process process = new ProcessBuilder(hostBinary.toString())
-                .redirectError(ProcessBuilder.Redirect.INHERIT)
-                .start();
+        IpcSocket socket = IpcSocket.listen();
+        Process process = null;
 
         try {
-            BufferedWriter writer = new BufferedWriter(
-                    new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
-            BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+            process = new ProcessBuilder(
+                hostBinary.toString(),
+                "--ipc-socket", socket.path().toString())
+                .redirectError(ProcessBuilder.Redirect.INHERIT)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start();
+            process.getOutputStream().close();
 
-            writer.write(Protocol.configure(config));
-            writer.newLine();
-            writer.flush();
+            socket.accept(process);
+            socket.writeLine(Protocol.configure(config));
 
-            String readyLine = reader.readLine();
+            String readyLine = socket.readLine();
             if (readyLine == null) {
                 throw new IOException("framework host exited before becoming ready");
             }
@@ -65,10 +55,15 @@ public final class FrameworkClient implements AutoCloseable {
                 throw new IOException("expected ready frame but received: " + first);
             }
 
-            return new FrameworkClient(process, writer, reader, ready.nodeId());
+            FrameworkClient client = new FrameworkClient(process, socket, ready.nodeId());
+            process = null;
+            return client;
         }
         catch (IOException | RuntimeException error) {
-            process.destroyForcibly();
+            if (process != null) {
+                process.destroyForcibly();
+            }
+            socket.close();
             throw error;
         }
     }
@@ -78,22 +73,19 @@ public final class FrameworkClient implements AutoCloseable {
     }
 
     public synchronized void listen(Consumer<FrameworkMessage> listener) {
-        readerThread = Thread.ofPlatform()
-                .daemon(true)
+        Thread.ofVirtual()
                 .name("locap2p-ipc-reader")
                 .start(() -> readFrames(listener));
     }
 
     public synchronized void publish(Object payload) throws IOException {
-        writer.write(Protocol.publish(payload));
-        writer.newLine();
-        writer.flush();
+        socket.writeLine(Protocol.publish(payload));
     }
 
     @Override
     public void close() {
         try {
-            writer.close();
+            socket.shutdownOutput();
         } catch (IOException ignored) {
         }
 
@@ -104,13 +96,15 @@ public final class FrameworkClient implements AutoCloseable {
         } catch (InterruptedException error) {
             Thread.currentThread().interrupt();
             process.destroyForcibly();
+        } finally {
+            socket.close();
         }
     }
 
     private void readFrames(Consumer<FrameworkMessage> listener) {
         try {
             String line;
-            while ((line = reader.readLine()) != null) {
+            while ((line = socket.readLine()) != null) {
                 if (line.isBlank()) {
                     continue;
                 }
