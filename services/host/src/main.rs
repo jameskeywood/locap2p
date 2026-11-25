@@ -1,10 +1,15 @@
-//! Framework host that bridges gossip to an application over stdio.
+//! Framework host that bridges gossip to an application over a Unix domain socket.
+use std::path::PathBuf;
 
+use anyhow::Context;
 use anyhow::Result;
+use clap::Parser;
 use locap2p_gossip::{AntiEntropyGossip, GossipEvent};
-use locap2p_ipc::{ClientFrame, ServerFrame, read_frame, write_frame};
+use locap2p_ipc::{ApplicationFrame, FrameworkFrame, read_frame, write_frame};
 use locap2p_network::Network;
-use tokio::io::{AsyncBufReadExt, BufReader, stdout};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::net::UnixStream;
+use tokio::net::unix::OwnedWriteHalf;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
@@ -13,23 +18,41 @@ mod host;
 
 use host::Host;
 
+#[derive(Debug, Parser)]
+#[command(name = "locap2p-host")]
+struct Cli {
+    /// Path to the Unix socket created by the application
+    #[arg(long)]
+    ipc_socket: PathBuf,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing();
 
-    let mut lines = BufReader::new(tokio::io::stdin()).lines();
-    let config = match read_frame::<ClientFrame, _>(&mut lines).await {
-        Ok(Some(ClientFrame::Configure { config })) => config,
+    let cli = Cli::parse();
+
+    // Connect to the application's Unix socket path
+    let stream = UnixStream::connect(&cli.ipc_socket)
+        .await
+        .with_context(|| format!("failed to connect to {}", cli.ipc_socket.display()))?;
+
+    let (read_half, mut write_half) = stream.into_split();
+    let mut lines = BufReader::new(read_half).lines();
+
+    let config = match read_frame::<ApplicationFrame, _>(&mut lines).await {
+        Ok(Some(ApplicationFrame::Configure { config })) => config,
         Ok(Some(frame)) => {
-            send_error(format!(
-                "expected a configure frame before any other frame, received {frame:?}"
-            ))
+            send_error(
+                format!("expected a configure frame before any other frame, received {frame:?}"),
+                &mut write_half,
+            )
             .await?;
             return Ok(());
         }
         Ok(None) => return Ok(()),
         Err(error) => {
-            send_error(format!("invalid IPC frame: {error}")).await?;
+            send_error(format!("invalid IPC frame: {error}"), &mut write_half).await?;
             return Ok(());
         }
     };
@@ -37,7 +60,7 @@ async fn main() -> Result<()> {
     let network = match Network::start(&config) {
         Ok(network) => network,
         Err(error) => {
-            send_error(format!("failed to start network: {error}")).await?;
+            send_error(format!("failed to start network: {error}"), &mut write_half).await?;
             return Ok(());
         }
     };
@@ -45,17 +68,17 @@ async fn main() -> Result<()> {
     let gossip = match AntiEntropyGossip::start(network, config.gossip.clone()) {
         Ok(gossip) => gossip,
         Err(error) => {
-            send_error(format!("failed to start gossip: {error}")).await?;
+            send_error(format!("failed to start gossip: {error}"), &mut write_half).await?;
             return Ok(());
         }
     };
     let mut host = Host::new(node_id.clone(), gossip);
 
     let (frames_tx, frames_rx) = mpsc::channel(64);
-    let writer = tokio::spawn(write_frames(frames_rx));
+    let writer = tokio::spawn(write_frames(frames_rx, write_half));
 
     frames_tx
-        .send(ServerFrame::Ready {
+        .send(FrameworkFrame::Ready {
             node_id: node_id.clone(),
         })
         .await?;
@@ -68,9 +91,9 @@ async fn main() -> Result<()> {
 
     loop {
         tokio::select! {
-            frame = read_frame::<ClientFrame, _>(&mut lines) => {
+            frame = read_frame::<ApplicationFrame, _>(&mut lines) => {
                 match frame {
-                    Ok(Some(ClientFrame::Publish { payload })) => {
+                    Ok(Some(ApplicationFrame::Publish { payload })) => {
                         let event = host.create_event(payload);
                         let event_id = event.id().clone();
                         let author = event.author().clone();
@@ -86,7 +109,7 @@ async fn main() -> Result<()> {
                             Err(error) => {
                                 warn!(%error, "failed to publish event");
                                 if frames_tx
-                                    .send(ServerFrame::Error {
+                                    .send(FrameworkFrame::Error {
                                         message: error.to_string(),
                                     })
                                     .await
@@ -97,9 +120,9 @@ async fn main() -> Result<()> {
                             }
                         }
                     }
-                    Ok(Some(ClientFrame::Configure { .. })) => {
+                    Ok(Some(ApplicationFrame::Configure { .. })) => {
                         if frames_tx
-                            .send(ServerFrame::Error {
+                            .send(FrameworkFrame::Error {
                                 message: "host is already configured".to_owned(),
                             })
                             .await
@@ -112,7 +135,7 @@ async fn main() -> Result<()> {
                     Err(error) => {
                         warn!(%error, "invalid ipc frame");
                         if frames_tx
-                            .send(ServerFrame::Error {
+                            .send(FrameworkFrame::Error {
                                 message: error.to_string(),
                             })
                             .await
@@ -126,13 +149,13 @@ async fn main() -> Result<()> {
             event = host.next_event() => {
                 match event {
                     Some(GossipEvent::Event(event)) => {
-                        if frames_tx.send(ServerFrame::Event { event }).await.is_err() {
+                        if frames_tx.send(FrameworkFrame::Event { event }).await.is_err() {
                             break;
                         }
                     }
                     Some(GossipEvent::PeerJoined(node_id)) => {
                         if frames_tx
-                            .send(ServerFrame::PeerJoined { node_id })
+                            .send(FrameworkFrame::PeerJoined { node_id })
                             .await
                             .is_err()
                         {
@@ -141,7 +164,7 @@ async fn main() -> Result<()> {
                     }
                     Some(GossipEvent::PeerLeft(node_id)) => {
                         if frames_tx
-                            .send(ServerFrame::PeerLeft { node_id })
+                            .send(FrameworkFrame::PeerLeft { node_id })
                             .await
                             .is_err()
                         {
@@ -160,11 +183,10 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn send_error(message: impl Into<String>) -> Result<()> {
-    let mut stdout = stdout();
+async fn send_error(message: impl Into<String>, write_half: &mut OwnedWriteHalf) -> Result<()> {
     write_frame(
-        &mut stdout,
-        &ServerFrame::Error {
+        write_half,
+        &FrameworkFrame::Error {
             message: message.into(),
         },
     )
@@ -172,11 +194,12 @@ async fn send_error(message: impl Into<String>) -> Result<()> {
     Ok(())
 }
 
-async fn write_frames(mut frames: mpsc::Receiver<ServerFrame>) -> Result<()> {
-    let mut stdout = stdout();
-
+async fn write_frames(
+    mut frames: mpsc::Receiver<FrameworkFrame>,
+    mut write_half: OwnedWriteHalf,
+) -> Result<()> {
     while let Some(frame) = frames.recv().await {
-        write_frame(&mut stdout, &frame).await?;
+        write_frame(&mut write_half, &frame).await?;
     }
 
     Ok(())

@@ -3,8 +3,8 @@
 ## Overview
 
 The application owns the node configuration. It loads a JSON file and passes the
-resulting configuration to the host in the initial IPC `configure` frame. The
-host does not read the configuration file itself.
+resulting configuration to the host in the initial IPC `configure` frame over
+the Unix socket. The host does not read the configuration file itself.
 
 A complete example is committed as `config/application.example.json`. Copy it to
 `config/local.json` and fill in the endpoints printed by the bootstrap and relay

@@ -2163,6 +2163,7 @@ name = "locap2p-host"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "locap2p-config",
  "locap2p-core",
  "locap2p-gossip",

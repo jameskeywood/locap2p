@@ -2,23 +2,33 @@
 
 ## Overview
 
-Applications run in a separate process and communicate with the framework host
-over the host's standard input and output. The application starts the host
-process and exchanges newline-delimited JSON (NDJSON) frames with it.
+Applications and the framework host run as separate processes and communicate
+over a Unix domain socket (`AF_UNIX`, `SOCK_STREAM`).
 
-Each frame is one UTF-8 JSON object followed by a newline. The host flushes
-after every frame, skips empty input lines, and rejects frames larger than
-64 KiB.
+The application is the listener. It creates a private temporary directory,
+binds `<directory>/ipc.sock`, starts the host with `--ipc-socket <path>`, and
+accepts one connection from it. The socket and directory are removed when the
+application closes the connection.
+
+stdout and stderr are not part of the protocol. The host writes logs to stderr.
+
+## Framing
+
+Each frame is one UTF-8 JSON object followed by a newline (NDJSON). The host
+flushes after every frame, skips empty input lines, and rejects frames larger
+than 64 KiB.
 
 ## Startup
 
 1. The application loads its configuration file.
-2. The application starts the host process.
-3. The application sends a configure frame as the first frame.
-4. The host loads the identity and starts the network, seed discovery, relay
+2. The application creates and binds the Unix socket.
+3. The application starts the host with `--ipc-socket <path>`.
+4. The host connects to the socket.
+5. The application sends a configure frame as the first frame.
+6. The host loads the identity and starts the network, seed discovery, relay
    connectivity, and gossip.
-5. The host writes a ready frame.
-6. The application waits for the ready frame before sending publish frames.
+7. The host writes a ready frame.
+8. The application waits for the ready frame before sending publish frames.
 
 `ready` means the configuration was accepted and local networking started. It
 does not mean that the bootstrap gateway has been reached, that a seed has been
@@ -41,7 +51,7 @@ Configure frame:
 {"type":"configure","config":{"schema_version":1,"application":{...}}}
 ```
 
-The full configuration schema is the same one described in
+The full configuration schema is described in
 [configuration.md](configuration.md).
 
 ```json
@@ -89,8 +99,8 @@ Event frame:
 - Invalid input after configuration produces an error frame; the host then
   continues reading.
 - A second configure frame is rejected because the host is already configured.
-- Closing the application's write end of the host's standard input shuts the
-  host down.
+- Shutting down the application's write side closes the connection; the host
+  sees EOF and exits.
 
 Peer discovery and the meaning of the peer-joined and peer-left frames are
 described in [discovery.md](discovery.md). Direct and relayed connectivity is
