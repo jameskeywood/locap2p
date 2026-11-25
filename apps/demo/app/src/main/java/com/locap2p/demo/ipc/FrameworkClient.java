@@ -9,6 +9,9 @@ import java.util.function.Consumer;
 import com.locap2p.demo.model.config.FrameworkConfig;
 import com.locap2p.demo.model.ipc.FrameworkMessage;
 
+/**
+ * Manages the framework host process and its IPC connection.
+ */
 public final class FrameworkClient implements AutoCloseable {
     private static final long SHUTDOWN_TIMEOUT_SECONDS = 2;
 

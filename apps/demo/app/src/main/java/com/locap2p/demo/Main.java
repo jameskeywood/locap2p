@@ -14,9 +14,14 @@ import com.locap2p.demo.model.config.FrameworkConfig;
 import com.locap2p.demo.model.ipc.FrameworkEvent;
 import com.locap2p.demo.model.ipc.FrameworkMessage;
 import com.locap2p.demo.model.player.Direction;
+import com.locap2p.demo.model.player.Player;
 import com.locap2p.demo.model.player.Position;
 import com.locap2p.demo.model.player.PositionEvent;
+import com.locap2p.demo.ui.InspectorWindow;
 
+/**
+ * Command-line entry point for the demo application.
+ */
 public final class Main {
     private Main() {
     }
@@ -27,6 +32,10 @@ public final class Main {
             printUsage();
             System.exit(2);
             return;
+        }
+
+        if (arguments.headless()) {
+            System.setProperty("java.awt.headless", "true");
         }
 
         Path hostBinary = arguments.hostBinary().toAbsolutePath().normalize();
@@ -56,6 +65,10 @@ public final class Main {
             System.out.println("Session: " + config.application().session());
             System.out.println("Commands: up, down, left, right, pos, quit");
 
+            if (!arguments.headless()) {
+                InspectorWindow.start(state, config.application().session());
+            }
+
             readCommands(client, state);
         }
     }
@@ -63,6 +76,7 @@ public final class Main {
     private static Arguments parseArguments(String[] args) {
         Path hostBinary = null;
         Path config = null;
+        boolean headless = false;
 
         for (int index = 0; index < args.length; index++) {
             switch (args[index]) {
@@ -78,6 +92,7 @@ public final class Main {
                     }
                     config = Path.of(args[++index]);
                 }
+                case "--headless" -> headless = true;
                 default -> {
                     return null;
                 }
@@ -87,15 +102,15 @@ public final class Main {
         if (hostBinary == null || config == null) {
             return null;
         }
-        return new Arguments(hostBinary, config);
+        return new Arguments(hostBinary, config, headless);
     }
 
     private static void printUsage() {
         System.err.println(
-                "usage: locap2p-demo --host-bin <path> --config <path>");
+                "usage: locap2p-demo --host-bin <path> --config <path> [--headless]");
     }
 
-    private record Arguments(Path hostBinary, Path config) {
+    private record Arguments(Path hostBinary, Path config, boolean headless) {
     }
 
     private static void readCommands(
@@ -139,10 +154,14 @@ public final class Main {
         switch (message) {
             case FrameworkMessage.EventMessage event ->
                     handleEvent(state, event.event());
-            case FrameworkMessage.PeerJoined joined ->
-                    System.out.printf("peer joined: %s%n", joined.nodeId());
-            case FrameworkMessage.PeerLeft left ->
-                    System.out.printf("peer left: %s%n", left.nodeId());
+            case FrameworkMessage.PeerJoined joined -> {
+                state.peerJoined(joined.nodeId());
+                System.out.printf("peer joined: %s%n", joined.nodeId());
+            }
+            case FrameworkMessage.PeerLeft left -> {
+                state.peerLeft(left.nodeId());
+                System.out.printf("peer left: %s%n", left.nodeId());
+            }
             case FrameworkMessage.Error error ->
                     System.err.printf("framework error: %s%n", error.message());
             case FrameworkMessage.Ready ignored -> {
@@ -158,7 +177,7 @@ public final class Main {
             }
 
             if (state.isLocal(event.author())) {
-                printLocal(event);
+                printLocal(state.local());
             } else {
                 System.out.printf(
                         "peer %s: (%d, %d)%n",
@@ -174,10 +193,10 @@ public final class Main {
         }
     }
 
-    private static void printLocal(PositionEvent event) {
+    private static void printLocal(Player player) {
         System.out.printf(
                 "you: (%d, %d)%n",
-                event.position().x(),
-                event.position().y());
+                player.position().x(),
+                player.position().y());
     }
 }

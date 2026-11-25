@@ -13,6 +13,9 @@ import com.locap2p.demo.model.ipc.FrameworkMessage;
 import com.locap2p.demo.model.player.Position;
 import com.locap2p.demo.model.player.PositionEvent;
 
+/**
+ * Encodes and decodes IPC frames exchanged with the framework host.
+ */
 public final class Protocol {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
