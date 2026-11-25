@@ -104,7 +104,7 @@ cargo build -p locap2p-host
 
 ./apps/demo/gradlew -p apps/demo :app:run --args="--host-bin $PWD/target/debug/locap2p-host --config $PWD/config/application.remote.json"
 
-./apps/demo/gradlew -p apps/demo :app:run --args="--host-bin $PWD/target/debug/locap2p-host --config $PWD/config/application.remote.json --headless"
+./apps/demo/gradlew -p apps/demo :app:run --args="--host-bin $PWD/target/debug/locap2p-host --config $PWD/config/application.remote.json --headless --random"
 ```
 
 ## Useful resources
